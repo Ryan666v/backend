@@ -21,4 +21,33 @@ const createNew = async (req, res, next) => {
     });
   }
 };
-module.exports = { createNew };
+const login = async (req, res, next) => {
+  const correctConditions = Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().min(6).required(),
+  });
+  try {
+    await correctConditions.validateAsync(req.body, { abortEarly: false });
+    next();
+  } catch (error) {
+    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
+      message: "Validation Error",
+      errors: new Error(error).message,
+    });
+  }
+};
+const getUserInfo = async (req, res, next) => {
+  const correctConditions = Joi.object({
+    _id: Joi.string().required(),
+  });
+  try {
+    await correctConditions.validateAsync(req.params, { abortEarly: false });
+    next();
+  } catch (error) {
+    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
+      message: "Validation Error",
+      errors: new Error(error).message,
+    });
+  }
+};
+module.exports = { createNew, login, getUserInfo };

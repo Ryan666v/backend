@@ -1,9 +1,16 @@
+const env = require("../config/environments");
 const jwt = require("jsonwebtoken");
-const generateAccessToken = (payload, secret, options) => {
-  return jwt.sign(payload, secret, options);
+const generalAccessToken = (data) => {
+  const access_token = jwt.sign(data, env.ACCESS_TOKEN_SECRET, {
+    expiresIn: "1m",
+  });
+  return access_token;
 };
 
-const generateRefreshToken = (payload, secret, options) => {
-  return jwt.sign(payload, secret, options);
+const generalRefreshToken = (data) => {
+  const refresh_token = jwt.sign(data, env.REFRESH_TOKEN_SECRET, {
+    expiresIn: "365d",
+  });
+  return refresh_token;
 };
-module.exports = { generateAccessToken, generateRefreshToken };
+module.exports = { generalAccessToken, generalRefreshToken };

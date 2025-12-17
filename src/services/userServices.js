@@ -29,25 +29,45 @@ const login = (newUser) => {
   return new Promise(async (resolve, reject) => {
     try {
       const checkedUser = await User.findOne({ email: newUser.email });
+      console.log(checkedUser);
       if (!checkedUser) {
         throw new AppError(
           "User with this email does not exist",
           StatusCodes.NOT_FOUND
         );
       }
-      const comparedPassword = await bcrypt.compareSync(
+      const comparedPassword = await bcrypt.compare(
         newUser.password,
         checkedUser.password
       );
       if (!comparedPassword) {
+        throw new AppError("Incorrect password", StatusCodes.UNAUTHORIZED);
       }
-      if (createdUser) {
-        resolve({ message: "User created successfully" });
+      resolve({
+        _id: checkedUser._id,
+        email: checkedUser.email,
+        role: checkedUser.role,
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+const getUserInfo = (req) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const checkedUser = await User.findOne({ _id: req.params._id }).select("-password");
+      if (!checkedUser) {
+        throw new AppError(
+          "User with this ID does not exist",
+          StatusCodes.NOT_FOUND
+        );
       }
+      resolve(checkedUser);
     } catch (error) {
       reject(error);
     }
   });
 };
 
-module.exports = { createUser, login };
+module.exports = { createUser, login, getUserInfo };
