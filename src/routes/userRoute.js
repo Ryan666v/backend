@@ -5,10 +5,13 @@ const userValidation = require("../validations/userValidation");
 const authMiddleware = require("../middlewares/authMiddleware");
 userRouter.post("/create", userValidation.createNew, userController.createUser);
 userRouter.post("/login", userValidation.login, userController.login);
+userRouter.post(
+  "/refresh_token",
+  userController.refreshToken
+);
 userRouter.get(
-  "/:_id",
+  "/user_info",
   authMiddleware.authUser,
-  userValidation.getUserInfo,
   userController.getUserInfo
 );
 module.exports = userRouter;

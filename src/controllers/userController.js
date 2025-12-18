@@ -27,6 +27,7 @@ const login = async (req, res) => {
       httpOnly: true,
       secure: false,
       sameSite: "lax",
+      path: '/',
       maxAge: 15 * 60 * 1000,
     });
 
@@ -34,10 +35,12 @@ const login = async (req, res) => {
       httpOnly: true,
       secure: false,
       sameSite: "lax",
+      path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-
-    return res.status(StatusCodes.OK).json({ message: "Login successful" });
+    return res
+      .status(StatusCodes.OK)
+      .json({ message: "Login successful", data: user });
   } catch (error) {
     return res
       .status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR)
@@ -49,7 +52,8 @@ const login = async (req, res) => {
 };
 const getUserInfo = async (req, res) => {
   try {
-    const user = await UserServices.getUserInfo(req);
+    console.log("req", req);
+    const user = await UserServices.getUserInfo(req?.user?.userId);
     return res
       .status(StatusCodes.OK)
       .json({ message: "User info retrieved successfully", data: user });
@@ -62,5 +66,33 @@ const getUserInfo = async (req, res) => {
       });
   }
 };
-
-module.exports = { createUser, login, getUserInfo };
+const refreshToken = async (req, res) => {
+  try {
+    const rfToken = req.cookies?.refresh_token;
+    // console.log(req)
+    if (!rfToken) {
+      return res.status(StatusCodes.UNAUTHORIZED).json({
+        message: "Refresh token is required",
+      });
+    }
+    const { access_token } = await UserServices.refreshToken(rfToken);
+    res.cookie("access_token", access_token, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: '/',
+      maxAge: 15 * 60 * 1000,
+    });
+    return res.status(StatusCodes.OK).json({
+      message: "New access token generated",
+    });
+  } catch (error) {
+    return res
+      .status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({
+        status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
+        message: error.message,
+      });
+  }
+};
+module.exports = { createUser, login, getUserInfo, refreshToken };

@@ -2,7 +2,7 @@ const env = require("../config/environments");
 const jwt = require("jsonwebtoken");
 const generalAccessToken = (data) => {
   const access_token = jwt.sign(data, env.ACCESS_TOKEN_SECRET, {
-    expiresIn: "1m",
+    expiresIn: "30s",
   });
   return access_token;
 };

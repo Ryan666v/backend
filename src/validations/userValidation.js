@@ -6,6 +6,7 @@ const createNew = async (req, res, next) => {
     email: Joi.string().email().required(),
     password: Joi.string().min(6).required(),
     role: Joi.string().valid("user", "admin").optional(),
+    gender: Joi.string().valid("male", "female", "other").optional(),
     phone: Joi.string()
       .pattern(/^[0-9]{9,11}$/)
       .required(),

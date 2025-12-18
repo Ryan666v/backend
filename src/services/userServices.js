@@ -2,6 +2,9 @@ const { StatusCodes } = require("http-status-codes");
 const User = require("../models/userModel");
 const bcrypt = require("bcrypt");
 const AppError = require("../utils/AppError");
+const jwt = require("jsonwebtoken");
+const env = require("../config/environments");
+const jwtServices = require("./jwtServices");
 const createUser = (newUser) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -29,7 +32,6 @@ const login = (newUser) => {
   return new Promise(async (resolve, reject) => {
     try {
       const checkedUser = await User.findOne({ email: newUser.email });
-      console.log(checkedUser);
       if (!checkedUser) {
         throw new AppError(
           "User with this email does not exist",
@@ -47,16 +49,19 @@ const login = (newUser) => {
         _id: checkedUser._id,
         email: checkedUser.email,
         role: checkedUser.role,
+        username: checkedUser.username,
       });
     } catch (error) {
       reject(error);
     }
   });
 };
-const getUserInfo = (req) => {
+const getUserInfo = (_id) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const checkedUser = await User.findOne({ _id: req.params._id }).select("-password");
+      const checkedUser = await User.findOne({ _id: _id }).select(
+        "-password"
+      );
       if (!checkedUser) {
         throw new AppError(
           "User with this ID does not exist",
@@ -69,5 +74,22 @@ const getUserInfo = (req) => {
     }
   });
 };
-
-module.exports = { createUser, login, getUserInfo };
+const refreshToken = (token) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      jwt.verify(token, env.REFRESH_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          throw new AppError("Invalid refresh token", StatusCodes.UNAUTHORIZED);
+        }
+        const access_token = jwtServices.generalAccessToken({
+          userId: decoded.userId,
+          role: decoded.role,
+        });
+        resolve({ access_token });
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+module.exports = { createUser, login, getUserInfo, refreshToken };
