@@ -1,19 +1,8 @@
-const Joi = require("joi");
 const { StatusCodes } = require("http-status-codes");
+const validations = require("./validations");
 const createNew = async (req, res, next) => {
-  const correctConditions = Joi.object({
-    username: Joi.string().alphanum().min(3).max(30).required(),
-    email: Joi.string().email().required(),
-    password: Joi.string().min(6).required(),
-    role: Joi.string().valid("user", "admin").optional(),
-    gender: Joi.string().valid("male", "female", "other").optional(),
-    phone: Joi.string()
-      .pattern(/^[0-9]{9,11}$/)
-      .required(),
-    dob: Joi.date().less("now").required(),
-  });
   try {
-    await correctConditions.validateAsync(req.body, { abortEarly: false });
+    await validations?.createUser?.validateAsync(req.body, { abortEarly: false });
     next();
   } catch (error) {
     return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
@@ -23,12 +12,8 @@ const createNew = async (req, res, next) => {
   }
 };
 const login = async (req, res, next) => {
-  const correctConditions = Joi.object({
-    email: Joi.string().email().required(),
-    password: Joi.string().min(6).required(),
-  });
   try {
-    await correctConditions.validateAsync(req.body, { abortEarly: false });
+    await validations.login.validateAsync(req.body, { abortEarly: false });
     next();
   } catch (error) {
     return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
@@ -38,11 +23,8 @@ const login = async (req, res, next) => {
   }
 };
 const getUserInfo = async (req, res, next) => {
-  const correctConditions = Joi.object({
-    _id: Joi.string().required(),
-  });
   try {
-    await correctConditions.validateAsync(req.params, { abortEarly: false });
+    await validations?.getUserInfo?.validateAsync(req.params, { abortEarly: false });
     next();
   } catch (error) {
     return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({

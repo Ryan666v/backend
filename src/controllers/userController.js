@@ -52,7 +52,6 @@ const login = async (req, res) => {
 };
 const getUserInfo = async (req, res) => {
   try {
-    console.log("req", req);
     const user = await UserServices.getUserInfo(req?.user?.userId);
     return res
       .status(StatusCodes.OK)
