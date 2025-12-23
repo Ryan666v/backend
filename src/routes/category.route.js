@@ -1,8 +1,8 @@
 const express = require("express");
 const categoryRouter = express.Router();
-const categoryController = require("../controllers/categoryController");
-const categoryValidation = require("../validations/categoryValidation");
-const authMiddleware = require("../middlewares/authMiddleware");
+const categoryController = require("../controllers/category.controller");
+const categoryValidation = require("../validations/category.validation");
+const authMiddleware = require("../middlewares/auth.middleware");
 categoryRouter.post(
   "/create",
   authMiddleware.authAdmin,

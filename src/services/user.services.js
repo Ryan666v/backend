@@ -1,10 +1,10 @@
 const { StatusCodes } = require("http-status-codes");
-const User = require("../models/userModel");
+const User = require("../models/user.model");
 const bcrypt = require("bcrypt");
 const AppError = require("../utils/AppError");
 const jwt = require("jsonwebtoken");
 const env = require("../config/environments");
-const jwtServices = require("./jwtServices");
+const jwtServices = require("./jwt.services");
 const Helper = require("../utils/helper");
 const createUser = (newUser) => {
   return new Promise(async (resolve, reject) => {

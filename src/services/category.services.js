@@ -1,5 +1,5 @@
 const { StatusCodes } = require("http-status-codes");
-const Category = require("../models/categoryModel");
+const Category = require("../models/category.model");
 const AppError = require("../utils/AppError");
 const Helper = require("../utils/helper");
 const create = async (newCategory) => {

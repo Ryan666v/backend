@@ -1,8 +1,8 @@
 const { StatusCodes } = require("http-status-codes");
-const CategoryServices = require("../services/categoryServices");
+const ColorServices = require("../services/color.services");
 const create = async (req, res) => {
   try {
-    const result = await CategoryServices.create(req.body);
+    const result = await ColorServices.create(req.body);
     return res.status(StatusCodes.CREATED).json(result);
   } catch (error) {
     return res
@@ -13,9 +13,9 @@ const create = async (req, res) => {
       });
   }
 };
-const get = async (req, res) => {
+const list = async (req, res) => {
   try {
-    const result = await CategoryServices.get(req.query);
+    const result = await ColorServices.get(req.query);
     return res.status(StatusCodes.OK).json({ success: true, ...result });
   } catch (error) {
     return res
@@ -26,9 +26,10 @@ const get = async (req, res) => {
       });
   }
 };
+
 const getDetail = async (req, res) => {
   try {
-    const result = await CategoryServices.getDetail(req.params._id);
+    const result = await ColorServices.getDetail(req.params._id);
     return res.status(StatusCodes.OK).json({ success: true, data: result });
   } catch (error) {
     res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
@@ -37,12 +38,11 @@ const getDetail = async (req, res) => {
     });
   }
 };
+
 const update = async (req, res) => {
   try {
     const { _id } = req.params;
-
-    const result = await CategoryServices.update(_id, req.body);
-
+    const result = await ColorServices.update(_id, req.body);
     return res.status(StatusCodes.OK).json({
       success: true,
       data: result,
@@ -54,9 +54,10 @@ const update = async (req, res) => {
     });
   }
 };
+
 const remove = async (req, res) => {
   try {
-    const result = await CategoryServices.remove(req.body._ids);
+    const result = await ColorServices.remove(req.body._ids);
     return res.status(StatusCodes.OK).json({ success: true, data: result });
   } catch (error) {
     res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
@@ -66,4 +67,4 @@ const remove = async (req, res) => {
   }
 };
 
-module.exports = { create, get, getDetail, update, remove };
+module.exports = { create, list, update, getDetail, remove };

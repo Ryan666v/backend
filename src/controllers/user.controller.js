@@ -1,6 +1,6 @@
 const { StatusCodes } = require("http-status-codes");
-const UserServices = require("../services/userServices");
-const jwtServices = require("../services/jwtServices");
+const UserServices = require("../services/user.services");
+const jwtServices = require("../services/jwt.services");
 const createUser = async (req, res) => {
   try {
     const result = await UserServices.createUser(req.body);
