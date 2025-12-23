@@ -15,13 +15,6 @@ const ProductVariant = mongoose.Schema(
     images: [
       { type: mongoose.Schema.Types.ObjectId, ref: "Image", required: true },
     ],
-    productVariantItems: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "ProductVariantItem",
-        required: true,
-      },
-    ],
   },
   {
     timestamps: true,

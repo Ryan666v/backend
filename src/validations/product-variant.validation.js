@@ -1,21 +1,32 @@
 const { StatusCodes } = require("http-status-codes");
 const Joi = require("joi");
-const hexColor = Joi.string()
-  .trim()
-  .pattern(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/)
-  .messages({
-    "string.pattern.base": "Mã màu phải là HEX hợp lệ (vd: #FFF hoặc #FFFFFF)",
-  });
+const objectId = Joi.string().length(24).hex();
 const createNew = async (req, res, next) => {
   try {
     await Joi.object({
-      name: Joi.string().trim().min(2).max(50).required().messages({
-        "string.empty": "Tên màu không được để trống",
+      product: objectId.required().messages({
+        "any.required": "Product là bắt buộc",
       }),
 
-      code: hexColor.required().messages({
-        "any.required": "Mã màu là bắt buộc",
+      color: objectId.required().messages({
+        "any.required": "Color là bắt buộc",
       }),
+
+      name: Joi.string().trim().min(2).max(150).required().messages({
+        "string.min": "Tên variant tối thiểu 2 ký tự",
+        "string.max": "Tên variant tối đa 150 ký tự",
+      }),
+
+      images: Joi.array().items(objectId).min(1).required().messages({
+        "array.min": "Phải có ít nhất 1 ảnh",
+      }),
+      productVariantItems: Joi.array()
+        .items(objectId)
+        .min(1)
+        .required()
+        .messages({
+          "array.min": "Phải có ít nhất 1 variant item",
+        }),
     }).validateAsync(req.body, {
       abortEarly: false,
     });
@@ -38,6 +49,8 @@ const getList = async (req, res, next) => {
         .valid("name", "createdAt", "updatedAt")
         .default("createdAt"),
       order: Joi.string().valid("asc", "desc").default("desc"),
+      product: objectId.optional(),
+      color: objectId.optional(),
     }).validateAsync(req.query, {
       abortEarly: false,
     });
@@ -70,11 +83,17 @@ const getDetail = async (req, res, next) => {
 const update = async (req, res, next) => {
   try {
     await Joi.object({
-      name: Joi.string().trim().min(2).max(50).optional(),
-      code: hexColor.optional(),
+      product: objectId.optional(),
+
+      color: objectId.optional(),
+
+      name: Joi.string().trim().min(2).max(150).optional(),
+
+      images: Joi.array().items(objectId).min(1).optional(),
+
+      productVariantItems: Joi.array().items(objectId).min(1).optional(),
     })
       .min(1)
-      .unknown(false)
       .messages({
         "object.min": "Phải có ít nhất 1 trường để cập nhật",
       })

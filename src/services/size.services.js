@@ -1,28 +1,30 @@
 const { StatusCodes } = require("http-status-codes");
-const Color = require("../models/color.model");
+const Size = require("../models/size.model");
 const AppError = require("../utils/AppError");
 const Helper = require("../utils/helper");
-
-const create = async (newColor) => {
+const create = async (newSize) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const checkedColor = await Color.findOne({ name: newColor.name });
-      if (checkedColor) {
+      const checkedSize = await Size.findOne({
+        name: newSize.name,
+      });
+      if (checkedSize) {
         throw new AppError(
-          "Color with this name already exists",
+          "Size with this name already exists",
           StatusCodes.CONFLICT
         );
       }
-      const createdColor = await Color.create(newColor);
-      if (createdColor) {
-        resolve({ message: "Color created successfully" });
+      const createdSize = await Size.create({
+        ...newSize,
+      });
+      if (createdSize) {
+        resolve({ message: "Size created successfully" });
       }
     } catch (error) {
       reject(error);
     }
   });
 };
-
 const get = async (query) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -42,7 +44,10 @@ const get = async (query) => {
       const sortOrder = order === "asc" ? 1 : -1;
       const sort = { [sortField]: sortOrder };
       if (all === true || all === "true") {
-        const data = await Color.find(filter).sort(sort).lean();
+        const data = await Size.find(filter)
+          .sort(sort)
+          .lean();
+
         resolve({
           all: true,
           total: data.length,
@@ -51,12 +56,12 @@ const get = async (query) => {
       }
       const skip = (page - 1) * limit;
 
-      const [colors, total] = await Promise.all([
-        Color.find(filter).skip(skip).limit(limit).sort(sort).lean(),
-        Color.countDocuments(filter),
+      const [sizes, total] = await Promise.all([
+        Size.find(filter).skip(skip).limit(limit).sort(sort).lean(),
+        Size.countDocuments(filter),
       ]);
       resolve({
-        data: colors,
+        data: sizes,
         pagination: {
           total,
           page: Number(page),
@@ -72,14 +77,14 @@ const get = async (query) => {
 const getDetail = async (_id) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const checkedColor = await Color.findById(_id).lean();
-      if (!checkedColor) {
+      const checkedSize = await Size.findOne({ _id: _id });
+      if (!checkedSize) {
         throw new AppError(
-          "Color with this ID does not exist",
+          "Size with this ID does not exist",
           StatusCodes.NOT_FOUND
         );
       }
-      resolve(checkedColor);
+      resolve(checkedSize);
     } catch (error) {
       reject(error);
     }
@@ -89,21 +94,19 @@ const update = async (_id, payload) => {
   return new Promise(async (resolve, reject) => {
     try {
       Helper.validateObjectId(_id);
-      const updatedColor = await Color.findByIdAndUpdate(
+      const updatedSize = await Size.findByIdAndUpdate(
         _id,
-        {
-          $set: Helper.pickAllowedFields(payload, ["name", "code"]),
-        },
+        { $set: Helper.pickAllowedFields(payload, ["name"]) },
         {
           new: true,
           runValidators: true,
         }
       ).lean();
-      if (!updatedColor) {
-        throw new AppError("Color not found", StatusCodes.NOT_FOUND);
+      if (!updatedSize) {
+        throw new AppError("Size not found", StatusCodes.NOT_FOUND);
       }
 
-      resolve(updatedColor);
+      resolve(updatedSize);
     } catch (error) {
       reject(error);
     }
@@ -113,12 +116,12 @@ const remove = async (_ids) => {
   return new Promise(async (resolve, reject) => {
     try {
       Helper.validateObjectIds(_ids);
-      const result = await Color.deleteMany({
+      const result = await Size.deleteMany({
         _id: { $in: _ids },
       });
 
       if (result.deletedCount === 0) {
-        throw new AppError("No colors were deleted", StatusCodes.NOT_FOUND);
+        throw new AppError("No sizes were deleted", StatusCodes.NOT_FOUND);
       }
       resolve({ deletedCount: result.deletedCount });
     } catch (error) {

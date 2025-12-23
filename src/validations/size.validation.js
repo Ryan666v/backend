@@ -1,20 +1,12 @@
 const { StatusCodes } = require("http-status-codes");
 const Joi = require("joi");
-const hexColor = Joi.string()
-  .trim()
-  .pattern(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/)
-  .messages({
-    "string.pattern.base": "Mã màu phải là HEX hợp lệ (vd: #FFF hoặc #FFFFFF)",
-  });
 const createNew = async (req, res, next) => {
   try {
     await Joi.object({
-      name: Joi.string().trim().min(2).max(50).required().messages({
-        "string.empty": "Tên màu không được để trống",
-      }),
-
-      code: hexColor.required().messages({
-        "any.required": "Mã màu là bắt buộc",
+      name: Joi.string().trim().min(1).max(100).required().messages({
+        "string.base": "Tên kích cỡ phải là chuỗi",
+        "string.empty": "Tên kích cỡ không được để trống",
+        "any.required": "Tên kích cỡ là bắt buộc",
       }),
     }).validateAsync(req.body, {
       abortEarly: false,
@@ -32,7 +24,7 @@ const getList = async (req, res, next) => {
     await Joi.object({
       page: Joi.number().integer().min(1).default(1),
       limit: Joi.number().integer().min(1).max(100).default(10),
-      search: Joi.string().trim().allow("").default(""),
+      search: Joi.string().trim().allow(""),
       all: Joi.boolean().default(false),
       sortBy: Joi.string()
         .valid("name", "createdAt", "updatedAt")
@@ -70,14 +62,9 @@ const getDetail = async (req, res, next) => {
 const update = async (req, res, next) => {
   try {
     await Joi.object({
-      name: Joi.string().trim().min(2).max(50).optional(),
-      code: hexColor.optional(),
+      name: Joi.string().trim().min(1).max(100).optional(),
     })
       .min(1)
-      .unknown(false)
-      .messages({
-        "object.min": "Phải có ít nhất 1 trường để cập nhật",
-      })
       .validateAsync(req.body, {
         abortEarly: false,
       });
@@ -97,7 +84,7 @@ const remove = async (req, res, next) => {
         .min(1)
         .required()
         .messages({
-          "array.min": "Phải chọn ít nhất 1 sản phẩm để xóa",
+          "array.min": "Phải chọn ít nhất 1 kích cỡ để xóa",
         }),
     }).validateAsync(req.body, {
       abortEarly: false,
