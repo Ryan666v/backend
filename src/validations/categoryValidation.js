@@ -54,7 +54,7 @@ const update = async (req, res, next) => {
 };
 const remove = async (req, res, next) => {
   try {
-    await validations?.createCategory?.validateAsync(req.body, {
+    await validations?.deleteManyCategories?.validateAsync(req.body, {
       abortEarly: false,
     });
     next();
@@ -64,4 +64,11 @@ const remove = async (req, res, next) => {
       errors: new Error(error).message,
     });
   }
+};
+module.exports = {
+  createNew,
+  getList,
+  getDetail,
+  update,
+  remove,
 };

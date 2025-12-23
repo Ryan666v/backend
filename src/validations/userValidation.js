@@ -2,7 +2,9 @@ const { StatusCodes } = require("http-status-codes");
 const validations = require("./validations");
 const createNew = async (req, res, next) => {
   try {
-    await validations?.createUser?.validateAsync(req.body, { abortEarly: false });
+    await validations?.createUser?.validateAsync(req.body, {
+      abortEarly: false,
+    });
     next();
   } catch (error) {
     return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
@@ -24,7 +26,9 @@ const login = async (req, res, next) => {
 };
 const getUserInfo = async (req, res, next) => {
   try {
-    await validations?.getUserInfo?.validateAsync(req.params, { abortEarly: false });
+    await validations?.getUserInfo?.validateAsync(req.params, {
+      abortEarly: false,
+    });
     next();
   } catch (error) {
     return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
@@ -33,4 +37,17 @@ const getUserInfo = async (req, res, next) => {
     });
   }
 };
-module.exports = { createNew, login, getUserInfo };
+const update = async (req, res, next) => {
+  try {
+    await validations?.updateUser?.validateAsync(req.body, {
+      abortEarly: false,
+    });
+    next();
+  } catch (error) {
+    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
+      message: "Validation Error",
+      errors: new Error(error).message,
+    });
+  }
+};
+module.exports = { createNew, login, getUserInfo, update };

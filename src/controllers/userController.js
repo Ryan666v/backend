@@ -27,7 +27,7 @@ const login = async (req, res) => {
       httpOnly: true,
       secure: false,
       sameSite: "lax",
-      path: '/',
+      path: "/",
       maxAge: 15 * 60 * 1000,
     });
 
@@ -35,7 +35,7 @@ const login = async (req, res) => {
       httpOnly: true,
       secure: false,
       sameSite: "lax",
-      path: '/',
+      path: "/",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
     return res
@@ -79,7 +79,7 @@ const refreshToken = async (req, res) => {
       httpOnly: true,
       secure: false,
       sameSite: "lax",
-      path: '/',
+      path: "/",
       maxAge: 15 * 60 * 1000,
     });
     return res.status(StatusCodes.OK).json({
@@ -94,4 +94,20 @@ const refreshToken = async (req, res) => {
       });
   }
 };
-module.exports = { createUser, login, getUserInfo, refreshToken };
+const update = async (req, res) => {
+  try {
+    const result = await UserServices.update(req.params._id, req.body);
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    return res
+      .status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({
+        status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
+        message: error.message,
+      });
+  }
+};
+module.exports = { createUser, login, getUserInfo, refreshToken, update };

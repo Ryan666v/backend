@@ -5,6 +5,7 @@ const AppError = require("../utils/AppError");
 const jwt = require("jsonwebtoken");
 const env = require("../config/environments");
 const jwtServices = require("./jwtServices");
+const Helper = require("../utils/helper");
 const createUser = (newUser) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -59,9 +60,7 @@ const login = (newUser) => {
 const getUserInfo = (_id) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const checkedUser = await User.findOne({ _id: _id }).select(
-        "-password"
-      );
+      const checkedUser = await User.findOne({ _id: _id }).select("-password");
       if (!checkedUser) {
         throw new AppError(
           "User with this ID does not exist",
@@ -92,4 +91,38 @@ const refreshToken = (token) => {
     }
   });
 };
-module.exports = { createUser, login, getUserInfo, refreshToken };
+
+const update = async (_id, payload) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      Helper.validateObjectId(_id);
+      const updatedUser = await User.findByIdAndUpdate(
+        _id,
+        {
+          $set: Helper.pickAllowedFields(payload, [
+            "username",
+            "email",
+            "phone",
+            "gender",
+            "dob",
+            "role",
+          ]),
+        },
+        {
+          new: true,
+          runValidators: true,
+        }
+      )
+        .select("-password")
+        .lean();
+
+      if (!updatedUser) {
+        throw new AppError("User not found", StatusCodes.NOT_FOUND);
+      }
+      resolve(updatedUser);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+module.exports = { createUser, login, getUserInfo, refreshToken, update };
