@@ -3,6 +3,7 @@ const productRouter = express.Router();
 const productController = require("../controllers/product.controller");
 const productValidation = require("../validations/product.validation");
 const authMiddleware = require("../middlewares/auth.middleware");
+const productVariantRouter = require("./product-variant.route");
 productRouter.post(
   "/create",
   authMiddleware.authAdmin,
@@ -26,5 +27,9 @@ productRouter.delete(
   authMiddleware.authAdmin,
   productValidation.remove,
   productController.remove
+);
+productRouter.use(
+  "/:productId/variants",
+  productVariantRouter
 );
 module.exports = productRouter;

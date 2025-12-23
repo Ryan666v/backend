@@ -32,9 +32,50 @@ const validateCategoriesExist = async (categoryIds = []) => {
     );
   }
 };
+
+const validateProductExist = async (productId) => {
+  validateObjectId(productId, "Invalid product id");
+
+  const exists = await Product.exists({ _id: productId });
+  if (!exists) {
+    throw new AppError("Product not found", StatusCodes.NOT_FOUND);
+  }
+};
+
+const validateColorExist = async (colorId) => {
+  validateObjectId(colorId, "Invalid color id");
+
+  const exists = await Color.exists({ _id: colorId });
+  if (!exists) {
+    throw new AppError("Color not found", StatusCodes.NOT_FOUND);
+  }
+};
+
+
+const validateVariantUnique = async ({ product, color, excludeId }) => {
+  const filter = { product, color };
+  if (excludeId) {
+    filter._id = { $ne: excludeId };
+  }
+
+  const exists = await ProductVariant.exists(filter);
+  if (exists) {
+    throw new AppError(
+      "This product already has a variant with this color",
+      StatusCodes.CONFLICT
+    );
+  }
+};
+
+const validateProductVariantDependencies = async ({ product, color }) => {
+  if (product) await validateProductExist(product);
+  if (color) await validateColorExist(color);
+};
 module.exports = {
   validateObjectId,
   validateObjectIds,
   pickAllowedFields,
   validateCategoriesExist,
+  validateProductVariantDependencies,
+  validateVariantUnique,
 };

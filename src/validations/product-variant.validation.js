@@ -16,17 +16,6 @@ const createNew = async (req, res, next) => {
         "string.min": "Tên variant tối thiểu 2 ký tự",
         "string.max": "Tên variant tối đa 150 ký tự",
       }),
-
-      images: Joi.array().items(objectId).min(1).required().messages({
-        "array.min": "Phải có ít nhất 1 ảnh",
-      }),
-      productVariantItems: Joi.array()
-        .items(objectId)
-        .min(1)
-        .required()
-        .messages({
-          "array.min": "Phải có ít nhất 1 variant item",
-        }),
     }).validateAsync(req.body, {
       abortEarly: false,
     });
@@ -88,10 +77,6 @@ const update = async (req, res, next) => {
       color: objectId.optional(),
 
       name: Joi.string().trim().min(2).max(150).optional(),
-
-      images: Joi.array().items(objectId).min(1).optional(),
-
-      productVariantItems: Joi.array().items(objectId).min(1).optional(),
     })
       .min(1)
       .messages({
