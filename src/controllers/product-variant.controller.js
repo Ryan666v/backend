@@ -31,8 +31,8 @@ const list = async (req, res) => {
 
 const getDetail = async (req, res) => {
   try {
-    const { productId, id } = req.params;
-    const result = await ProductVariantServices.getDetail(productId, id);
+    const { productId, _id } = req.params;
+    const result = await ProductVariantServices.getDetail(productId, _id);
     return res.status(StatusCodes.OK).json({ success: true, data: result });
   } catch (error) {
     res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({

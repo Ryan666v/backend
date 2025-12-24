@@ -58,6 +58,10 @@ const getDetail = async (req, res, next) => {
         "string.length": "ID không hợp lệ",
         "string.hex": "ID không đúng định dạng ObjectId",
       }),
+      productId: Joi.string().length(24).hex().required().messages({
+        "string.length": "ID không hợp lệ",
+        "string.hex": "ID không đúng định dạng ObjectId",
+      }),
     }).validateAsync(req.params, {
       abortEarly: false,
     });

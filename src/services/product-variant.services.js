@@ -85,6 +85,7 @@ const get = async (productId, query) => {
 };
 const getDetail = async (productId, _id) => {
   return new Promise(async (resolve, reject) => {
+    console.log(productId, _id);
     try {
       const variant = await ProductVariant.findOne({
         _id,

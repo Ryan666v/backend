@@ -1,6 +1,9 @@
 const mongoose = require("mongoose");
 const AppError = require("./AppError");
 const Category = require("../models/category.model");
+const Product = require("../models/product.model");
+const Color = require("../models/color.model");
+const ProductVariant = require("../models/product-variant.model");
 const { StatusCodes } = require("http-status-codes");
 const validateObjectId = (_id) => {
   if (!mongoose.Types.ObjectId.isValid(_id)) {
@@ -51,7 +54,6 @@ const validateColorExist = async (colorId) => {
   }
 };
 
-
 const validateVariantUnique = async ({ product, color, excludeId }) => {
   const filter = { product, color };
   if (excludeId) {
@@ -71,6 +73,23 @@ const validateProductVariantDependencies = async ({ product, color }) => {
   if (product) await validateProductExist(product);
   if (color) await validateColorExist(color);
 };
+
+const validateProductVariantExist = async (variantId) => {
+  if (!mongoose.Types.ObjectId.isValid(variantId)) {
+    throw new AppError(
+      "Product variant ID is invalid",
+      StatusCodes.BAD_REQUEST
+    );
+  }
+
+  const variant = await ProductVariant.findById(variantId).select("_id");
+  if (!variant) {
+    throw new AppError("Product variant not found", StatusCodes.NOT_FOUND);
+  }
+
+  return true;
+};
+
 module.exports = {
   validateObjectId,
   validateObjectIds,
@@ -78,4 +97,6 @@ module.exports = {
   validateCategoriesExist,
   validateProductVariantDependencies,
   validateVariantUnique,
+  validateProductExist,
+  validateProductVariantExist
 };

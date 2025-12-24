@@ -1,6 +1,6 @@
 const express = require("express");
 const variantRouter = express.Router({ mergeParams: true });
-
+const imageRouter = require("./image.route");
 const variantController = require("../controllers/product-variant.controller");
 const variantValidation = require("../validations/product-variant.validation");
 const authMiddleware = require("../middlewares/auth.middleware");
@@ -29,4 +29,5 @@ variantRouter.delete(
   variantValidation.remove,
   variantController.remove
 );
+variantRouter.use("/:variantId/image", imageRouter);
 module.exports = variantRouter;
