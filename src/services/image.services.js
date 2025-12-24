@@ -11,7 +11,7 @@ const createMany = async (variantId, files) => {
       if (!files || files.length === 0) {
         throw new AppError("No images uploaded", StatusCodes.BAD_REQUEST);
       }
-      console.log(files)
+      console.log(files);
       if (files.length > 4) {
         throw new AppError(
           "Maximum 4 images are allowed",
@@ -28,6 +28,11 @@ const createMany = async (variantId, files) => {
 
       resolve(createdImages);
     } catch (error) {
+      await Promise.all(
+        files.map(async (file) => {
+          await cloudinary.uploader.destroy(file.filename);
+        })
+      );
       reject(error);
     }
   });
