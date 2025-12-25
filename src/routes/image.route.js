@@ -9,5 +9,13 @@ imageRouter.post(
   upload.array("images", 4),
   imageController.createMany
 );
+imageRouter.get("/list", imageController.get);
+imageRouter.get("/:_id", imageController.getDetail);
+imageRouter.patch(
+  "/:_id",
+  authMiddleware.authAdmin,
+  upload.array("images", 1),
+  imageController.update
+);
 imageRouter.delete("/", authMiddleware.authAdmin, imageController.remove);
 module.exports = imageRouter;

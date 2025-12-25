@@ -4,6 +4,7 @@ const Category = require("../models/category.model");
 const Product = require("../models/product.model");
 const Color = require("../models/color.model");
 const ProductVariant = require("../models/product-variant.model");
+const Size = require("../models/size.model");
 const { StatusCodes } = require("http-status-codes");
 const validateObjectId = (_id) => {
   if (!mongoose.Types.ObjectId.isValid(_id)) {
@@ -90,6 +91,15 @@ const validateProductVariantExist = async (variantId) => {
   return true;
 };
 
+const validateSizeExist = async (sizeId) => {
+  validateObjectId(sizeId, "Invalid size id");
+
+  const exists = await Size.exists({ _id: sizeId });
+  if (!exists) {
+    throw new AppError("Size not found", StatusCodes.NOT_FOUND);
+  }
+  return true;
+};
 module.exports = {
   validateObjectId,
   validateObjectIds,
@@ -98,5 +108,6 @@ module.exports = {
   validateProductVariantDependencies,
   validateVariantUnique,
   validateProductExist,
-  validateProductVariantExist
+  validateProductVariantExist,
+  validateSizeExist,
 };

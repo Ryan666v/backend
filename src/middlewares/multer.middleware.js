@@ -7,7 +7,6 @@ const storage = new CloudinaryStorage({
   params: async (req, file) => ({
     folder: "ecommerce_images",
     format: "jpg",
-    public_id: `variant-${req.params.variantId}-${Date.now()}`,
   }),
 });
 
@@ -25,5 +24,6 @@ const upload = multer({
     }
   },
 });
+
 
 module.exports = upload;

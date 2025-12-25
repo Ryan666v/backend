@@ -16,50 +16,54 @@ const createMany = async (req, res) => {
       });
   }
 };
-// const get = async (req, res) => {
-//   try {
-//     const result = await SizeServices.get(req.query);
-//     return res.status(StatusCodes.OK).json({ success: true, ...result });
-//   } catch (error) {
-//     return res
-//       .status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR)
-//       .json({
-//         status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-//         message: error.message,
-//       });
-//   }
-// };
-// const getDetail = async (req, res) => {
-//   try {
-//     const result = await SizeServices.getDetail(req.params._id);
-//     return res.status(StatusCodes.OK).json({ success: true, data: result });
-//   } catch (error) {
-//     res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
-//       status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-//       message: error.message,
-//     });
-//   }
-// };
-// const update = async (req, res) => {
-//   try {
-//     const { _id } = req.params;
+const get = async (req, res) => {
+  try {
+    const result = await ImageServices.getByVariant(req.params.variantId);
+    return res.status(StatusCodes.OK).json({ success: true, ...result });
+  } catch (error) {
+    return res
+      .status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({
+        status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
+        message: error.message,
+      });
+  }
+};
+const getDetail = async (req, res) => {
+  try {
+    const result = await ImageServices.getDetail(req.params._id);
+    return res.status(StatusCodes.OK).json({ success: true, data: result });
+  } catch (error) {
+    res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
+      status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
+      message: error.message,
+    });
+  }
+};
+const update = async (req, res) => {
+  try {
+    const { _id } = req.params;
 
-//     const result = await SizeServices.update(_id, req.body);
+    const result = await ImageServices.update(_id, req.files);
 
-//     return res.status(StatusCodes.OK).json({
-//       success: true,
-//       data: result,
-//     });
-//   } catch (error) {
-//     res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
-//       status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-//       message: error.message,
-//     });
-//   }
-// };
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
+      status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
+      message: error.message,
+    });
+  }
+};
+
 const remove = async (req, res) => {
   try {
-    const result = await ImageServices.removeMany(req.params.variantId, req.body._ids);
+    const result = await ImageServices.removeMany(
+      req.params.variantId,
+      req.body._ids
+    );
     return res.status(StatusCodes.OK).json({ success: true, data: result });
   } catch (error) {
     res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
@@ -69,4 +73,4 @@ const remove = async (req, res) => {
   }
 };
 
-module.exports = { createMany ,remove};
+module.exports = { createMany, remove, get, update, getDetail };
