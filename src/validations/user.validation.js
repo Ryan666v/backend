@@ -1,5 +1,6 @@
 const { StatusCodes } = require("http-status-codes");
 const Joi = require("joi");
+const AppError = require("../utils/AppError");
 
 const createNew = async (req, res, next) => {
   try {
@@ -18,10 +19,9 @@ const createNew = async (req, res, next) => {
     });
     next();
   } catch (error) {
-    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
-      message: "Validation Error",
-      errors: new Error(error).message,
-    });
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
   }
 };
 const login = async (req, res, next) => {
@@ -32,10 +32,9 @@ const login = async (req, res, next) => {
     }).validateAsync(req.body, { abortEarly: false });
     next();
   } catch (error) {
-    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
-      message: "Validation Error",
-      errors: new Error(error).message,
-    });
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
   }
 };
 const getUserInfo = async (req, res, next) => {
@@ -47,10 +46,9 @@ const getUserInfo = async (req, res, next) => {
     });
     next();
   } catch (error) {
-    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
-      message: "Validation Error",
-      errors: new Error(error).message,
-    });
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
   }
 };
 const update = async (req, res, next) => {
@@ -69,10 +67,9 @@ const update = async (req, res, next) => {
       });
     next();
   } catch (error) {
-    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
-      message: "Validation Error",
-      errors: new Error(error).message,
-    });
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
   }
 };
 module.exports = { createNew, login, getUserInfo, update };

@@ -2,7 +2,7 @@ const { StatusCodes } = require("http-status-codes");
 const Image = require("../models/image.model");
 const AppError = require("../utils/AppError");
 const Helper = require("../utils/helper");
-const cloudinary = require("../config/cloudinary");
+const cloudinary = require("../configs/cloudinary");
 const createMany = async (variantId, files) => {
   return new Promise(async (resolve, reject) => {
     try {

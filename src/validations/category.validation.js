@@ -1,5 +1,7 @@
 const { StatusCodes } = require("http-status-codes");
 const Joi = require("joi");
+const AppError = require("../utils/AppError");
+
 const createNew = async (req, res, next) => {
   try {
     await Joi.object({
@@ -17,10 +19,9 @@ const createNew = async (req, res, next) => {
     });
     next();
   } catch (error) {
-    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
-      message: "Validation Error",
-      errors: new Error(error).message,
-    });
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
   }
 };
 const getList = async (req, res, next) => {
@@ -39,10 +40,9 @@ const getList = async (req, res, next) => {
     });
     next();
   } catch (error) {
-    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
-      message: "Validation Error",
-      errors: new Error(error).message,
-    });
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
   }
 };
 const getDetail = async (req, res, next) => {
@@ -57,10 +57,9 @@ const getDetail = async (req, res, next) => {
     });
     next();
   } catch (error) {
-    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
-      message: "Validation Error",
-      errors: new Error(error).message,
-    });
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
   }
 };
 const update = async (req, res, next) => {
@@ -75,10 +74,9 @@ const update = async (req, res, next) => {
       });
     next();
   } catch (error) {
-    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
-      message: "Validation Error",
-      errors: new Error(error).message,
-    });
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
   }
 };
 const remove = async (req, res, next) => {
@@ -96,10 +94,9 @@ const remove = async (req, res, next) => {
     });
     next();
   } catch (error) {
-    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
-      message: "Validation Error",
-      errors: new Error(error).message,
-    });
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
   }
 };
 module.exports = {

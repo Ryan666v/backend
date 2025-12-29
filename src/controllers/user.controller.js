@@ -1,20 +1,15 @@
 const { StatusCodes } = require("http-status-codes");
 const UserServices = require("../services/user.services");
 const jwtServices = require("../services/jwt.services");
-const createUser = async (req, res) => {
+const createUser = async (req, res, next) => {
   try {
     const result = await UserServices.createUser(req.body);
     return res.status(StatusCodes.CREATED).json(result);
   } catch (error) {
-    return res
-      .status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({
-        status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-        message: error.message,
-      });
+    next(error);
   }
 };
-const login = async (req, res) => {
+const login = async (req, res, next) => {
   try {
     const user = await UserServices.login(req.body);
     const payload = {
@@ -42,12 +37,7 @@ const login = async (req, res) => {
       .status(StatusCodes.OK)
       .json({ message: "Login successful", data: user });
   } catch (error) {
-    return res
-      .status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({
-        status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-        message: error.message,
-      });
+    next(error);
   }
 };
 const getUserInfo = async (req, res) => {
@@ -57,18 +47,12 @@ const getUserInfo = async (req, res) => {
       .status(StatusCodes.OK)
       .json({ message: "User info retrieved successfully", data: user });
   } catch (error) {
-    return res
-      .status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({
-        status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-        message: error.message,
-      });
+    next(error);
   }
 };
-const refreshToken = async (req, res) => {
+const refreshToken = async (req, res, next) => {
   try {
     const rfToken = req.cookies?.refresh_token;
-    // console.log(req)
     if (!rfToken) {
       return res.status(StatusCodes.UNAUTHORIZED).json({
         message: "Refresh token is required",
@@ -86,15 +70,10 @@ const refreshToken = async (req, res) => {
       message: "New access token generated",
     });
   } catch (error) {
-    return res
-      .status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({
-        status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-        message: error.message,
-      });
+    next(error);
   }
 };
-const update = async (req, res) => {
+const update = async (req, res, next) => {
   try {
     const result = await UserServices.update(req.params._id, req.body);
     return res.status(StatusCodes.OK).json({
@@ -102,12 +81,7 @@ const update = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    return res
-      .status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({
-        status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-        message: error.message,
-      });
+    next(error);
   }
 };
 module.exports = { createUser, login, getUserInfo, refreshToken, update };

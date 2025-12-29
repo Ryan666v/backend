@@ -1,5 +1,6 @@
 const Joi = require("joi");
 const { StatusCodes } = require("http-status-codes");
+const AppError = require("../utils/AppError");
 
 const objectId = Joi.string().length(24).hex();
 
@@ -35,10 +36,9 @@ const createNew = async (req, res, next) => {
 
     next();
   } catch (error) {
-    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
-      message: "Validation Error",
-      errors: error.details.map((e) => e.message),
-    });
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
   }
 };
 
@@ -59,10 +59,9 @@ const getList = async (req, res, next) => {
 
     next();
   } catch (error) {
-    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
-      message: "Validation Error",
-      errors: error.details.map((e) => e.message),
-    });
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
   }
 };
 
@@ -79,10 +78,9 @@ const getDetail = async (req, res, next) => {
 
     next();
   } catch (error) {
-    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
-      message: "Validation Error",
-      errors: error.details.map((e) => e.message),
-    });
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
   }
 };
 
@@ -104,33 +102,27 @@ const update = async (req, res, next) => {
 
     next();
   } catch (error) {
-    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
-      message: "Validation Error",
-      errors: error.details.map((e) => e.message),
-    });
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
   }
 };
 
 const remove = async (req, res, next) => {
   try {
     await Joi.object({
-      _ids: Joi.array()
-        .items(objectId)
-        .min(1)
-        .required()
-        .messages({
-          "array.min": "Phải chọn ít nhất 1 item để xóa",
-        }),
+      _ids: Joi.array().items(objectId).min(1).required().messages({
+        "array.min": "Phải chọn ít nhất 1 item để xóa",
+      }),
     }).validateAsync(req.body, {
       abortEarly: false,
     });
 
     next();
   } catch (error) {
-    return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json({
-      message: "Validation Error",
-      errors: error.details.map((e) => e.message),
-    });
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
   }
 };
 

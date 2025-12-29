@@ -1,6 +1,6 @@
 const { StatusCodes } = require("http-status-codes");
 const ImageServices = require("../services/image.services");
-const createMany = async (req, res) => {
+const createMany = async (req, res, next) => {
   try {
     const result = await ImageServices.createMany(
       req.params.variantId,
@@ -8,39 +8,26 @@ const createMany = async (req, res) => {
     );
     return res.status(StatusCodes.CREATED).json(result);
   } catch (error) {
-    return res
-      .status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({
-        status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-        message: error.message,
-      });
+    next(error);
   }
 };
-const get = async (req, res) => {
+const get = async (req, res, next) => {
   try {
     const result = await ImageServices.getByVariant(req.params.variantId);
     return res.status(StatusCodes.OK).json({ success: true, ...result });
   } catch (error) {
-    return res
-      .status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({
-        status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-        message: error.message,
-      });
+    next(error);
   }
 };
-const getDetail = async (req, res) => {
+const getDetail = async (req, res, next) => {
   try {
     const result = await ImageServices.getDetail(req.params._id);
     return res.status(StatusCodes.OK).json({ success: true, data: result });
   } catch (error) {
-    res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
-      status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-      message: error.message,
-    });
+    next(error);
   }
 };
-const update = async (req, res) => {
+const update = async (req, res, next) => {
   try {
     const { _id } = req.params;
 
@@ -51,14 +38,11 @@ const update = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
-      status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-      message: error.message,
-    });
+    next(error);
   }
 };
 
-const remove = async (req, res) => {
+const remove = async (req, res, next) => {
   try {
     const result = await ImageServices.removeMany(
       req.params.variantId,
@@ -66,10 +50,7 @@ const remove = async (req, res) => {
     );
     return res.status(StatusCodes.OK).json({ success: true, data: result });
   } catch (error) {
-    res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
-      status: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-      message: error.message,
-    });
+    next(error);
   }
 };
 

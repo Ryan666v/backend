@@ -1,28 +1,22 @@
 const { StatusCodes } = require("http-status-codes");
 const ProductVariantItemService = require("../services/product-variant-item.services");
 
-const create = async (req, res) => {
+const create = async (req, res, next) => {
   try {
     const { variantId } = req.params;
 
-    const result = await ProductVariantItemService.create(
-      variantId,
-      req.body
-    );
-
+    const result = await ProductVariantItemService.create(variantId, req.body);
+    
     return res.status(StatusCodes.CREATED).json({
       success: true,
       data: result,
     });
   } catch (error) {
-    return res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: error.message,
-    });
+    next(error);
   }
 };
 
-const getList = async (req, res) => {
+const getList = async (req, res, next) => {
   try {
     const { variantId } = req.params;
 
@@ -36,35 +30,26 @@ const getList = async (req, res) => {
       ...result,
     });
   } catch (error) {
-    return res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: error.message,
-    });
+    next(error);
   }
 };
 
-const getDetail = async (req, res) => {
+const getDetail = async (req, res, next) => {
   try {
     const { variantId, _id } = req.params;
 
-    const result = await ProductVariantItemService.getDetail(
-      variantId,
-      _id
-    );
+    const result = await ProductVariantItemService.getDetail(variantId, _id);
 
     return res.status(StatusCodes.OK).json({
       success: true,
       data: result,
     });
   } catch (error) {
-    return res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: error.message,
-    });
+    next(error);
   }
 };
 
-const update = async (req, res) => {
+const update = async (req, res, next) => {
   try {
     const { variantId, _id } = req.params;
 
@@ -79,32 +64,23 @@ const update = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    return res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: error.message,
-    });
+    next(error);
   }
 };
 
-const remove = async (req, res) => {
+const remove = async (req, res, next) => {
   try {
     const { variantId } = req.params;
     const { _ids } = req.body;
 
-    const result = await ProductVariantItemService.remove(
-      variantId,
-      _ids
-    );
+    const result = await ProductVariantItemService.remove(variantId, _ids);
 
     return res.status(StatusCodes.OK).json({
       success: true,
       data: result,
     });
   } catch (error) {
-    return res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: error.message,
-    });
+    next(error);
   }
 };
 

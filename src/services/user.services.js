@@ -3,7 +3,7 @@ const User = require("../models/user.model");
 const bcrypt = require("bcrypt");
 const AppError = require("../utils/AppError");
 const jwt = require("jsonwebtoken");
-const env = require("../config/environments");
+const env = require("../configs/environments");
 const jwtServices = require("./jwt.services");
 const Helper = require("../utils/helper");
 const createUser = (newUser) => {
