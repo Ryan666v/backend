@@ -9,6 +9,8 @@ const env = {
   CLOUD_NAME: process.env.CLOUD_NAME,
   CLOUD_API_KEY: process.env.CLOUD_API_KEY,
   CLOUD_API_SECRET: process.env.CLOUD_API_SECRET,
+  TMN_CODE: process.env.TMN_CODE,
+  SECURE_SECRET: process.env.SECURE_SECRET,
 };
 
 module.exports = env;
