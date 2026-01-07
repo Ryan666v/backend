@@ -9,7 +9,7 @@ categoryRouter.post(
   categoryValidation.createNew,
   categoryController.create
 );
-categoryRouter.get("/list", authMiddleware.authAdmin, categoryValidation.getList, categoryController.get);
+categoryRouter.get("/list", categoryValidation.getList, categoryController.get);
 categoryRouter.get(
   "/:_id",
   authMiddleware.authAdmin,
