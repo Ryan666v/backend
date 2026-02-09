@@ -15,6 +15,7 @@ const ProductVariant = mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+    versionKey: false,
+  },
 );
 module.exports = mongoose.model("ProductVariant", ProductVariant);

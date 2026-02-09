@@ -14,7 +14,7 @@ const upload = multer({
   storage,
   limits: {
     files: 4,
-    fileSize: 5 * 1024 * 1024, 
+    fileSize: 5 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
     if (!file.mimetype.startsWith("image/")) {
@@ -24,6 +24,20 @@ const upload = multer({
     }
   },
 });
+const bulkUpload = multer({
+  storage,
+  limits: {
+    files: 20,
+    fileSize: 5 * 1024 * 1024,
+  },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith("image/")) {
+      console.log(storage)
+      cb(new Error("Chỉ cho phép upload file ảnh"), false);
+    } else {
+      cb(null, true);
+    }
+  },
+});
 
-
-module.exports = upload;
+module.exports = { upload, bulkUpload };

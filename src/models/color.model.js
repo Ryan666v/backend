@@ -6,6 +6,7 @@ const colorSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+    versionKey: false,
+  },
 );
 module.exports = mongoose.model("Color", colorSchema);

@@ -4,10 +4,16 @@ const createMany = async (req, res, next) => {
   try {
     const result = await ImageServices.createMany(
       req.params.variantId,
-      req.files
+      req.files,
     );
     return res.status(StatusCodes.CREATED).json(result);
   } catch (error) {
+    if (req.files && req.files.length > 0) {
+      const cloudinary = require("../configs/cloudinary");
+      await Promise.all(
+        req.files.map((file) => cloudinary.uploader.destroy(file.filename)),
+      );
+    }
     next(error);
   }
 };
@@ -46,7 +52,7 @@ const remove = async (req, res, next) => {
   try {
     const result = await ImageServices.removeMany(
       req.params.variantId,
-      req.body._ids
+      req.body._ids,
     );
     return res.status(StatusCodes.OK).json({ success: true, data: result });
   } catch (error) {

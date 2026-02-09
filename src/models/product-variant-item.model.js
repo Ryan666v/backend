@@ -17,6 +17,7 @@ const productVariantItemSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+    versionKey: false,
+  },
 );
 module.exports = mongoose.model("ProductVariantItem", productVariantItemSchema);

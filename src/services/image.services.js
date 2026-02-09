@@ -30,7 +30,6 @@ const createMany = async (variantId, files) => {
       resolve(createdImages);
     } catch (error) {
       if (Array.isArray(files) && files.length > 0) {
-        console.log("run");
         await Promise.all(
           files.map((file) => cloudinary.uploader.destroy(file.filename))
         );

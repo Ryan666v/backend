@@ -5,6 +5,7 @@ const sizeSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+    versionKey: false,
+  },
 );
 module.exports = mongoose.model("Size", sizeSchema);
