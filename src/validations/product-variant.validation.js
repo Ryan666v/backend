@@ -24,7 +24,7 @@ const createNew = async (req, res, next) => {
     next();
   } catch (error) {
     next(
-      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY),
     );
   }
 };
@@ -47,7 +47,7 @@ const getList = async (req, res, next) => {
     next();
   } catch (error) {
     next(
-      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY),
     );
   }
 };
@@ -58,17 +58,13 @@ const getDetail = async (req, res, next) => {
         "string.length": "ID không hợp lệ",
         "string.hex": "ID không đúng định dạng ObjectId",
       }),
-      productId: Joi.string().length(24).hex().required().messages({
-        "string.length": "ID không hợp lệ",
-        "string.hex": "ID không đúng định dạng ObjectId",
-      }),
     }).validateAsync(req.params, {
       abortEarly: false,
     });
     next();
   } catch (error) {
     next(
-      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY),
     );
   }
 };
@@ -91,7 +87,7 @@ const update = async (req, res, next) => {
     next();
   } catch (error) {
     next(
-      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY),
     );
   }
 };
@@ -111,7 +107,7 @@ const remove = async (req, res, next) => {
     next();
   } catch (error) {
     next(
-      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY),
     );
   }
 };

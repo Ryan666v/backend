@@ -25,10 +25,9 @@ const create = async (productId, payload) => {
   });
 };
 
-const get = async (productId, query) => {
+const get = async (query) => {
   return new Promise(async (resolve, reject) => {
     try {
-      await Helper.validateProductExist(productId);
       const {
         page = 1,
         limit = 10,
@@ -37,10 +36,7 @@ const get = async (productId, query) => {
         sortBy = "createdAt",
         order = "desc",
       } = query;
-      const filter = {
-        product: productId,
-        ...(search && { name: { $regex: search, $options: "i" } }),
-      };
+      const filter = search ? { name: { $regex: search, $options: "i" } } : {};
       const allowedSortFields = ["name", "createdAt", "updatedAt"];
       const sortField = allowedSortFields.includes(sortBy)
         ? sortBy
@@ -50,6 +46,13 @@ const get = async (productId, query) => {
       if (all === true || all === "true") {
         const data = await ProductVariant.find(filter)
           .populate("color", "name code")
+          .populate("images")
+          .populate({
+            path: "items",
+            populate: {
+              path: "size",
+            },
+          })
           .sort(sort)
           .lean();
         resolve({
@@ -63,6 +66,13 @@ const get = async (productId, query) => {
       const [variants, total] = await Promise.all([
         ProductVariant.find(filter)
           .populate("color", "name code")
+          .populate("images")
+          .populate({
+            path: "items",
+            populate: {
+              path: "size",
+            },
+          })
           .skip(skip)
           .limit(limit)
           .sort(sort)
@@ -83,17 +93,21 @@ const get = async (productId, query) => {
     }
   });
 };
-const getDetail = async (productId, _id) => {
+const getDetail = async (_id) => {
   return new Promise(async (resolve, reject) => {
-    console.log(productId, _id);
     try {
       const variant = await ProductVariant.findOne({
         _id,
-        product: productId,
       })
         .populate("color", "name code")
+        .populate("images")
+        .populate({
+          path: "items",
+          populate: {
+            path: "size",
+          },
+        })
         .lean();
-
       if (!variant) {
         throw new AppError("Product variant not found", StatusCodes.NOT_FOUND);
       }
@@ -103,27 +117,19 @@ const getDetail = async (productId, _id) => {
     }
   });
 };
-const update = async (productId, _id, payload) => {
+const update = async (_id, payload) => {
   return new Promise(async (resolve, reject) => {
     try {
       Helper.validateObjectId(_id);
-      if (payload?.color) {
-        await Helper.validateColorExist(payload?.color);
-        await Helper.validateVariantUnique({
-          product: productId,
-          color: payload.color,
-          excludeId: _id,
-        });
-      }
       const updatedVariant = await ProductVariant.findByIdAndUpdate(
-        { _id, product: productId },
+        { _id },
         {
           $set: Helper.pickAllowedFields(payload, ["name", "color"]),
         },
         {
           new: true,
           runValidators: true,
-        }
+        },
       )
         .populate("color", "name code")
         .lean();

@@ -50,14 +50,11 @@ const remove = async (req, res, next) => {
 const createMany = async (req, res, next) => {
   try {
     const productsData = JSON.parse(req.body.products);
-    const uploadedFiles = req.files || [];
-    console.log(uploadedFiles)
+    const uploadedFiles = req.files;
 
-    const result = await ProductServices.createMany(
-      productsData,
-      uploadedFiles,
-    );
-    return res.status(StatusCodes.OK).json({ success: true, data: result });
+    const result = await ProductServices.createMany(productsData, uploadedFiles);
+
+    return res.status(StatusCodes.CREATED).json({ success: true, data: result });
   } catch (error) {
     if (req.files && req.files.length > 0) {
       const cloudinary = require("../configs/cloudinary");

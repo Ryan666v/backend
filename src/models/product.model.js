@@ -10,6 +10,13 @@ const productSchema = new mongoose.Schema(
         required: true,
       },
     ],
+    variants: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ProductVariant",
+        required: true,
+      },
+    ],
   },
   {
     timestamps: true,

@@ -11,8 +11,7 @@ const create = async (req, res, next) => {
 };
 const list = async (req, res, next) => {
   try {
-    const { productId } = req.params;
-    const result = await ProductVariantServices.get(productId, req.query);
+    const result = await ProductVariantServices.get(req.query);
     return res.status(StatusCodes.OK).json({ success: true, ...result });
   } catch (error) {
     next(error);
@@ -21,8 +20,8 @@ const list = async (req, res, next) => {
 
 const getDetail = async (req, res, next) => {
   try {
-    const { productId, _id } = req.params;
-    const result = await ProductVariantServices.getDetail(productId, _id);
+    const { _id } = req.params;
+    const result = await ProductVariantServices.getDetail(_id);
     return res.status(StatusCodes.OK).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -31,12 +30,8 @@ const getDetail = async (req, res, next) => {
 
 const update = async (req, res, next) => {
   try {
-    const { productId, _id } = req.params;
-    const result = await ProductVariantServices.update(
-      productId,
-      _id,
-      req.body
-    );
+    const { _id } = req.params;
+    const result = await ProductVariantServices.update(_id, req.body);
     return res.status(StatusCodes.OK).json({
       success: true,
       data: result,

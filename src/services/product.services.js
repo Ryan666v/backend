@@ -6,6 +6,7 @@ const { default: mongoose } = require("mongoose");
 const Image = require("../models/image.model");
 const ProductVariant = require("../models/product-variant.model");
 const ProductVariantItem = require("../models/product-variant-item.model");
+const cloudinary = require("../configs/cloudinary");
 
 const create = async (newProduct) => {
   return new Promise(async (resolve, reject) => {
@@ -41,7 +42,23 @@ const get = async (query) => {
       const sort = { [sortField]: sortOrder };
       if (all === true || all === "true") {
         const data = await Product.find(filter)
-          .populate("categories", "name description createdAt updatedAt")
+          .populate("categories", "name description")
+          .populate({
+            path: "variants",
+            populate: [
+              {
+                path: "items",
+                populate: {
+                  path: "size",
+                  select: "name",
+                },
+              },
+              {
+                path: "images",
+                select: "image_url public_id",
+              },
+            ],
+          })
           .sort(sort)
           .lean();
         resolve({
@@ -54,7 +71,23 @@ const get = async (query) => {
 
       const [products, total] = await Promise.all([
         Product.find(filter)
-          .populate("categories", "name description createdAt updatedAt")
+          .populate("categories", "name description")
+          .populate({
+            path: "variants",
+            populate: [
+              {
+                path: "items",
+                populate: {
+                  path: "size",
+                  select: "name",
+                },
+              },
+              {
+                path: "images",
+                select: "image_url public_id",
+              },
+            ],
+          })
           .skip(skip)
           .limit(limit)
           .sort(sort)
@@ -80,7 +113,7 @@ const getDetail = async (_id) => {
     try {
       const checkedProduct = await Product.findById(_id).populate(
         "categories",
-        "name description createdAt updatedAt",
+        "name description",
       );
       if (!checkedProduct) {
         throw new AppError(
@@ -146,106 +179,110 @@ const remove = async (_ids) => {
 };
 
 const createMany = async (productsData, uploadedFiles) => {
-  return new Promise(async (resolve, reject) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    try {
-      console.log("run")
-      const createdProducts = [];
-      let fileIndex = 0; // Track vị trí file trong mảng uploadedFiles
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-      for (const productData of productsData) {
-        // 1. Tạo Product
-        const product = await Product.create(
-          [
-            {
-              name: productData.name,
-              description: productData.description,
-              categories: productData.categories,
-            },
-          ],
-          { session },
+  try {
+    let fileIndex = 0;
+
+    const imageDocs = [];
+    const itemDocs = [];
+    const variantDocs = [];
+    const productDocs = [];
+
+    for (const productData of productsData) {
+      const variantIds = [];
+
+      for (const variantData of productData.variants || []) {
+        // lấy file đúng variant
+        const imageCount = variantData.imageCount || 0;
+        const variantFiles = uploadedFiles.slice(
+          fileIndex,
+          fileIndex + imageCount,
         );
-        console.log(product)
-        const createdProduct = product[0];
-        const createdVariants = [];
+        fileIndex += imageCount;
 
-        // 2. Xử lý từng variant
-        for (const variantData of productData.variants || []) {
-          // 2.1. Tạo ProductVariant
-          console.log('variantData',variantData)
-          const variant = await ProductVariant.create(
-            [
-              {
-                product: createdProduct._id,
-                color: variantData.color,
-                name: variantData.variantName,
-              },
-            ],
-            { session },
-          );
+        const imageIds = [];
 
-          const createdVariant = variant[0];
-          console.log('createdVariant',createdVariant)
+        for (const file of variantFiles) {
+          const _id = new mongoose.Types.ObjectId();
 
-          // 2.2. Tạo Images từ uploadedFiles
-          const imageCount = variantData.images?.length || 0;
-          if (imageCount > 0) {
-            const variantFiles = uploadedFiles.slice(
-              fileIndex,
-              fileIndex + imageCount,
-            );
-            fileIndex += imageCount;
+          imageDocs.push({
+            _id,
+            image_url: file.path,
+            public_id: file.filename,
+          });
 
-            const imagesPayload = variantFiles.map((file) => ({
-              image_url: file.path,
-              public_id: file.filename,
-              productVariant: createdVariant._id,
-            }));
-
-            await Image.insertMany(imagesPayload, { session });
-          }
-
-          // 2.3. Tạo ProductVariantItems
-          if (variantData.items && variantData.items.length > 0) {
-            const itemsPayload = variantData.items.map((item) => ({
-              name: item.name,
-              price: item.price,
-              productVariant: createdVariant._id,
-              quantity: item.quantity,
-              size: item.size,
-            }));
-
-            await ProductVariantItem.insertMany(itemsPayload, { session });
-          }
-
-          createdVariants.push(createdVariant);
+          imageIds.push(_id);
         }
 
-        createdProducts.push({
-          product: createdProduct,
-          variants: createdVariants,
+        const itemIds = [];
+
+        for (const item of variantData.items || []) {
+          const _id = new mongoose.Types.ObjectId();
+
+          itemDocs.push({
+            _id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            size: item.size,
+          });
+
+          itemIds.push(_id);
+        }
+
+        const variantId = new mongoose.Types.ObjectId();
+
+        variantDocs.push({
+          _id: variantId,
+          name: variantData.name,
+          color: variantData.color,
+          images: imageIds,
+          items: itemIds,
         });
-      }
-      console.log('createdProducts',createdProducts)
-      await session.commitTransaction();
-      resolve(createdProducts);
-    } catch (error) {
-      await session.abortTransaction();
-      if (uploadedFiles && uploadedFiles.length > 0) {
-        await Promise.all(
-          uploadedFiles.map((file) =>
-            cloudinary.uploader
-              .destroy(file.filename)
-              .catch((err) => console.error("Error deleting file:", err)),
-          ),
-        );
+
+        variantIds.push(variantId);
       }
 
-      reject(error);
-    } finally {
-      session.endSession();
+      const productId = new mongoose.Types.ObjectId();
+
+      productDocs.push({
+        _id: productId,
+        name: productData.name,
+        description: productData.description,
+        categories: productData.categories,
+        variants: variantIds,
+      });
     }
-  });
+
+    if (imageDocs.length) await Image.insertMany(imageDocs, { session });
+
+    if (itemDocs.length)
+      await ProductVariantItem.insertMany(itemDocs, { session });
+
+    if (variantDocs.length)
+      await ProductVariant.insertMany(variantDocs, { session });
+
+    if (productDocs.length) await Product.insertMany(productDocs, { session });
+
+    await session.commitTransaction();
+
+    return productDocs;
+  } catch (error) {
+    await session.abortTransaction();
+
+    if (uploadedFiles?.length) {
+      await Promise.all(
+        uploadedFiles.map((file) =>
+          cloudinary.uploader.destroy(file.filename).catch(() => {}),
+        ),
+      );
+    }
+
+    throw error;
+  } finally {
+    session.endSession();
+  }
 };
 module.exports = { create, get, getDetail, update, remove, createMany };

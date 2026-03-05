@@ -9,6 +9,11 @@ const orderSchema = new mongoose.Schema({
   phone: { type: String, required: true },
   total: { type: Number, required: true, min: 0 },
   status: { type: String, required: true, default: "Pending" },
+  image: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Image",
+    required: false,
+  },
   orderItems: [
     {
       type: mongoose.Schema.Types.ObjectId,

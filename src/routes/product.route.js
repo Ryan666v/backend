@@ -3,7 +3,6 @@ const productRouter = express.Router();
 const productController = require("../controllers/product.controller");
 const productValidation = require("../validations/product.validation");
 const authMiddleware = require("../middlewares/auth.middleware");
-const productVariantRouter = require("./product-variant.route");
 const { bulkUpload } = require("../middlewares/multer.middleware");
 productRouter.post(
   "/create",
@@ -32,9 +31,7 @@ productRouter.delete(
 productRouter.post(
   "/bulk_create",
   authMiddleware.authAdmin,
-  bulkUpload.array("images", 1000),
-  // productValidation.createMany,.
-  productController.createMany,
+  bulkUpload.any(),
+  productController.createMany
 );
-productRouter.use("/:productId/variants", productVariantRouter);
 module.exports = productRouter;
