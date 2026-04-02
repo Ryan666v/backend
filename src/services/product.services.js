@@ -194,7 +194,6 @@ const createMany = async (productsData, uploadedFiles) => {
       const variantIds = [];
 
       for (const variantData of productData.variants || []) {
-        // lấy file đúng variant
         const imageCount = variantData.imageCount || 0;
         const variantFiles = uploadedFiles.slice(
           fileIndex,
@@ -255,7 +254,7 @@ const createMany = async (productsData, uploadedFiles) => {
         variants: variantIds,
       });
     }
-
+    console.log('imageDocs',imageDocs)
     if (imageDocs.length) await Image.insertMany(imageDocs, { session });
 
     if (itemDocs.length)

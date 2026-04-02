@@ -2,10 +2,7 @@ const { StatusCodes } = require("http-status-codes");
 const ImageServices = require("../services/image.services");
 const createMany = async (req, res, next) => {
   try {
-    const result = await ImageServices.createMany(
-      req.params.variantId,
-      req.files,
-    );
+    const result = await ImageServices.createMany(req.files);
     return res.status(StatusCodes.CREATED).json(result);
   } catch (error) {
     if (req.files && req.files.length > 0) {
@@ -17,14 +14,7 @@ const createMany = async (req, res, next) => {
     next(error);
   }
 };
-const get = async (req, res, next) => {
-  try {
-    const result = await ImageServices.getByVariant(req.params.variantId);
-    return res.status(StatusCodes.OK).json({ success: true, ...result });
-  } catch (error) {
-    next(error);
-  }
-};
+
 const getDetail = async (req, res, next) => {
   try {
     const result = await ImageServices.getDetail(req.params._id);
@@ -51,7 +41,6 @@ const update = async (req, res, next) => {
 const remove = async (req, res, next) => {
   try {
     const result = await ImageServices.removeMany(
-      req.params.variantId,
       req.body._ids,
     );
     return res.status(StatusCodes.OK).json({ success: true, data: result });
@@ -60,4 +49,4 @@ const remove = async (req, res, next) => {
   }
 };
 
-module.exports = { createMany, remove, get, update, getDetail };
+module.exports = { createMany, remove, update, getDetail };

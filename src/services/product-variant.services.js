@@ -3,20 +3,17 @@ const ProductVariant = require("../models/product-variant.model");
 const AppError = require("../utils/AppError");
 const Helper = require("../utils/helper");
 
-const create = async (productId, payload) => {
+const create = async (payload) => {
   return new Promise(async (resolve, reject) => {
     try {
       await Helper.validateProductVariantDependencies({
-        product: productId,
         color: payload.color,
       });
       await Helper.validateVariantUnique({
-        product: productId,
         color: payload.color,
       });
       const createdVariant = await ProductVariant.create({
         ...payload,
-        product: productId,
       });
       resolve(createdVariant);
     } catch (error) {
@@ -143,13 +140,12 @@ const update = async (_id, payload) => {
     }
   });
 };
-const remove = async (productId, _ids) => {
+const remove = async (_ids) => {
   return new Promise(async (resolve, reject) => {
     try {
       Helper.validateObjectIds(_ids);
       const result = await ProductVariant.deleteMany({
         _id: { $in: _ids },
-        product: productId,
       });
 
       if (result.deletedCount === 0) {

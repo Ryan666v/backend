@@ -9,7 +9,7 @@ imageRouter.post(
   upload.array("images", 4),
   imageController.createMany,
 );
-imageRouter.get("/list", imageController.get);
+
 imageRouter.get("/:_id", imageController.getDetail);
 imageRouter.patch(
   "/:_id",

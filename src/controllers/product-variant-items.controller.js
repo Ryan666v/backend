@@ -3,10 +3,7 @@ const ProductVariantItemService = require("../services/product-variant-item.serv
 
 const create = async (req, res, next) => {
   try {
-    const { variantId } = req.params;
-
-    const result = await ProductVariantItemService.create(variantId, req.body);
-    
+    const result = await ProductVariantItemService.create(req.body);
     return res.status(StatusCodes.CREATED).json({
       success: true,
       data: result,
@@ -18,12 +15,7 @@ const create = async (req, res, next) => {
 
 const getList = async (req, res, next) => {
   try {
-    const { variantId } = req.params;
-
-    const result = await ProductVariantItemService.getList(
-      variantId,
-      req.query
-    );
+    const result = await ProductVariantItemService.getList(req.query);
 
     return res.status(StatusCodes.OK).json({
       success: true,
@@ -36,9 +28,9 @@ const getList = async (req, res, next) => {
 
 const getDetail = async (req, res, next) => {
   try {
-    const { variantId, _id } = req.params;
+    const { _id } = req.params;
 
-    const result = await ProductVariantItemService.getDetail(variantId, _id);
+    const result = await ProductVariantItemService.getDetail(_id);
 
     return res.status(StatusCodes.OK).json({
       success: true,
@@ -51,13 +43,9 @@ const getDetail = async (req, res, next) => {
 
 const update = async (req, res, next) => {
   try {
-    const { variantId, _id } = req.params;
+    const { _id } = req.params;
 
-    const result = await ProductVariantItemService.update(
-      variantId,
-      _id,
-      req.body
-    );
+    const result = await ProductVariantItemService.update(_id, req.body);
 
     return res.status(StatusCodes.OK).json({
       success: true,
@@ -70,10 +58,9 @@ const update = async (req, res, next) => {
 
 const remove = async (req, res, next) => {
   try {
-    const { variantId } = req.params;
     const { _ids } = req.body;
 
-    const result = await ProductVariantItemService.remove(variantId, _ids);
+    const result = await ProductVariantItemService.remove(_ids);
 
     return res.status(StatusCodes.OK).json({
       success: true,

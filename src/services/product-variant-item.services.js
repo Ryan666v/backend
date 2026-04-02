@@ -3,27 +3,24 @@ const ProductVariantItem = require("../models/product-variant-item.model");
 const AppError = require("../utils/AppError");
 const Helper = require("../utils/helper");
 
-const create = async (variantId, payload) => {
+const create = async (payload) => {
   return new Promise(async (resolve, reject) => {
     try {
-      await Helper.validateProductVariantExist(variantId);
       await Helper.validateSizeExist(payload.size);
 
       const exists = await ProductVariantItem.findOne({
-        productVariant: variantId,
         size: payload.size,
       });
 
       if (exists) {
         throw new AppError(
           "This size already exists in this variant",
-          StatusCodes.CONFLICT
+          StatusCodes.CONFLICT,
         );
       }
 
       const createdItem = await ProductVariantItem.create({
         ...payload,
-        productVariant: variantId,
       });
 
       resolve(createdItem);
@@ -33,11 +30,9 @@ const create = async (variantId, payload) => {
   });
 };
 
-const getList = async (variantId, query) => {
+const getList = async (query) => {
   return new Promise(async (resolve, reject) => {
     try {
-      await Helper.validateProductVariantExist(variantId);
-
       const {
         page = 1,
         limit = 10,
@@ -46,9 +41,13 @@ const getList = async (variantId, query) => {
         order = "desc",
       } = query;
 
-      const filter = { productVariant: variantId };
-      const sort = { [sortBy]: order === "asc" ? 1 : -1 };
-
+      const filter = search ? { name: { $regex: search, $options: "i" } } : {};
+      const allowedSortFields = ["name", "createdAt", "updatedAt"];
+      const sortField = allowedSortFields.includes(sortBy)
+        ? sortBy
+        : "createdAt";
+      const sortOrder = order === "asc" ? 1 : -1;
+      const sort = { [sortField]: sortOrder };
       if (all === true || all === "true") {
         const data = await ProductVariantItem.find(filter)
           .populate("size", "name")
@@ -89,14 +88,11 @@ const getList = async (variantId, query) => {
   });
 };
 
-const getDetail = async (variantId, itemId) => {
+const getDetail = async (itemId) => {
   return new Promise(async (resolve, reject) => {
     try {
-      Helper.validateObjectId(itemId);
-
       const item = await ProductVariantItem.findOne({
         _id: itemId,
-        productVariant: variantId,
       })
         .populate("size", "name")
         .lean();
@@ -104,7 +100,7 @@ const getDetail = async (variantId, itemId) => {
       if (!item) {
         throw new AppError(
           "Product variant item not found",
-          StatusCodes.NOT_FOUND
+          StatusCodes.NOT_FOUND,
         );
       }
 
@@ -115,7 +111,7 @@ const getDetail = async (variantId, itemId) => {
   });
 };
 
-const update = async (variantId, itemId, payload) => {
+const update = async (itemId, payload) => {
   return new Promise(async (resolve, reject) => {
     try {
       Helper.validateObjectId(itemId);
@@ -124,7 +120,6 @@ const update = async (variantId, itemId, payload) => {
         await Helper.validateSizeExist(payload.size);
 
         const exists = await ProductVariantItem.findOne({
-          productVariant: variantId,
           size: payload.size,
           _id: { $ne: itemId },
         });
@@ -132,13 +127,13 @@ const update = async (variantId, itemId, payload) => {
         if (exists) {
           throw new AppError(
             "This size already exists in this variant",
-            StatusCodes.CONFLICT
+            StatusCodes.CONFLICT,
           );
         }
       }
 
       const updatedItem = await ProductVariantItem.findOneAndUpdate(
-        { _id: itemId, productVariant: variantId },
+        { _id: itemId },
         {
           $set: Helper.pickAllowedFields(payload, [
             "name",
@@ -147,7 +142,7 @@ const update = async (variantId, itemId, payload) => {
             "size",
           ]),
         },
-        { new: true, runValidators: true }
+        { new: true, runValidators: true },
       )
         .populate("size", "name")
         .lean();
@@ -155,7 +150,7 @@ const update = async (variantId, itemId, payload) => {
       if (!updatedItem) {
         throw new AppError(
           "Product variant item not found",
-          StatusCodes.NOT_FOUND
+          StatusCodes.NOT_FOUND,
         );
       }
 
@@ -166,14 +161,13 @@ const update = async (variantId, itemId, payload) => {
   });
 };
 
-const remove = async (variantId, _ids) => {
+const remove = async (_ids) => {
   return new Promise(async (resolve, reject) => {
     try {
       Helper.validateObjectIds(_ids);
 
       const result = await ProductVariantItem.deleteMany({
         _id: { $in: _ids },
-        productVariant: variantId,
       });
 
       if (result.deletedCount === 0) {

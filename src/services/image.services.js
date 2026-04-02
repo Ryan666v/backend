@@ -3,11 +3,9 @@ const Image = require("../models/image.model");
 const AppError = require("../utils/AppError");
 const Helper = require("../utils/helper");
 const cloudinary = require("../configs/cloudinary");
-const createMany = async (variantId, files) => {
+const createMany = async (files) => {
   return new Promise(async (resolve, reject) => {
     try {
-      await Helper.validateProductVariantExist(variantId);
-
       if (!Array.isArray(files) || files.length === 0) {
         throw new AppError("No images uploaded", StatusCodes.BAD_REQUEST);
       }
@@ -15,14 +13,13 @@ const createMany = async (variantId, files) => {
       if (files.length > 4) {
         throw new AppError(
           "Maximum 4 images are allowed",
-          StatusCodes.UNPROCESSABLE_ENTITY
+          StatusCodes.UNPROCESSABLE_ENTITY,
         );
       }
 
       const imagesPayload = files.map((file) => ({
         image_url: file.path,
         public_id: file.filename,
-        productVariant: variantId,
       }));
 
       const createdImages = await Image.insertMany(imagesPayload);
@@ -31,29 +28,10 @@ const createMany = async (variantId, files) => {
     } catch (error) {
       if (Array.isArray(files) && files.length > 0) {
         await Promise.all(
-          files.map((file) => cloudinary.uploader.destroy(file.filename))
+          files.map((file) => cloudinary.uploader.destroy(file.filename)),
         );
       }
 
-      reject(error);
-    }
-  });
-};
-
-const getByVariant = async (variantId) => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      await Helper.validateProductVariantExist(variantId);
-
-      const images = await Image.find({ productVariant: variantId })
-        .sort({ createdAt: -1 })
-        .lean();
-
-      resolve({
-        total: images.length,
-        data: images,
-      });
-    } catch (error) {
       reject(error);
     }
   });
@@ -76,7 +54,7 @@ const getDetail = async (_id) => {
   });
 };
 
-const removeMany = async (variantId, imageIds) => {
+const removeMany = async (imageIds) => {
   return new Promise(async (resolve, reject) => {
     try {
       const images = await Image.find({
@@ -90,7 +68,7 @@ const removeMany = async (variantId, imageIds) => {
       await Promise.all(
         images.map((image) => {
           cloudinary.uploader.destroy(image.public_id);
-        })
+        }),
       );
       const result = await Image.deleteMany({
         _id: { $in: imageIds },
@@ -138,4 +116,4 @@ const update = async (_id, files) => {
   });
 };
 
-module.exports = { createMany, getByVariant, getDetail, removeMany, update };
+module.exports = { createMany, getDetail, removeMany, update };
