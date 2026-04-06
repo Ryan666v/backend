@@ -7,9 +7,11 @@ const create = async (payload) => {
   return new Promise(async (resolve, reject) => {
     try {
       await Helper.validateProductVariantDependencies({
+        product: payload.product,
         color: payload.color,
       });
       await Helper.validateVariantUnique({
+        product: payload.product,
         color: payload.color,
       });
       const createdVariant = await ProductVariant.create({
@@ -32,8 +34,16 @@ const get = async (query) => {
         all = false,
         sortBy = "createdAt",
         order = "desc",
+        product,
+        color,
       } = query;
       const filter = search ? { name: { $regex: search, $options: "i" } } : {};
+      if (product) {
+        filter.product = product;
+      }
+      if (color) {
+        filter.color = color;
+      }
       const allowedSortFields = ["name", "createdAt", "updatedAt"];
       const sortField = allowedSortFields.includes(sortBy)
         ? sortBy
@@ -42,6 +52,7 @@ const get = async (query) => {
       const sort = { [sortField]: sortOrder };
       if (all === true || all === "true") {
         const data = await ProductVariant.find(filter)
+          .populate("product", "name")
           .populate("color", "name code")
           .populate("images")
           .populate({
@@ -52,7 +63,7 @@ const get = async (query) => {
           })
           .sort(sort)
           .lean();
-        resolve({
+        return resolve({
           all: true,
           total: data.length,
           data,
@@ -62,6 +73,7 @@ const get = async (query) => {
 
       const [variants, total] = await Promise.all([
         ProductVariant.find(filter)
+          .populate("product", "name")
           .populate("color", "name code")
           .populate("images")
           .populate({
@@ -96,6 +108,7 @@ const getDetail = async (_id) => {
       const variant = await ProductVariant.findOne({
         _id,
       })
+        .populate("product", "name")
         .populate("color", "name code")
         .populate("images")
         .populate({
@@ -118,21 +131,37 @@ const update = async (_id, payload) => {
   return new Promise(async (resolve, reject) => {
     try {
       Helper.validateObjectId(_id);
+      const currentVariant = await ProductVariant.findById(_id).lean();
+      if (!currentVariant) {
+        throw new AppError("Product variant not found", StatusCodes.NOT_FOUND);
+      }
+
+      const nextProduct = payload.product || currentVariant.product?.toString();
+      const nextColor = payload.color || currentVariant.color?.toString();
+
+      await Helper.validateProductVariantDependencies({
+        product: nextProduct,
+        color: nextColor,
+      });
+      await Helper.validateVariantUnique({
+        product: nextProduct,
+        color: nextColor,
+        excludeId: _id,
+      });
+
       const updatedVariant = await ProductVariant.findByIdAndUpdate(
         { _id },
         {
-          $set: Helper.pickAllowedFields(payload, ["name", "color"]),
+          $set: Helper.pickAllowedFields(payload, ["name", "product", "color"]),
         },
         {
           new: true,
           runValidators: true,
         },
       )
+        .populate("product", "name")
         .populate("color", "name code")
         .lean();
-      if (!updatedVariant) {
-        throw new AppError("Product variant not found", StatusCodes.NOT_FOUND);
-      }
 
       resolve(updatedVariant);
     } catch (error) {

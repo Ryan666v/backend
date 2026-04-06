@@ -6,14 +6,21 @@ const Color = require("../models/color.model");
 const ProductVariant = require("../models/product-variant.model");
 const Size = require("../models/size.model");
 const { StatusCodes } = require("http-status-codes");
-const validateObjectId = (_id) => {
+
+const validateObjectId = (_id, message = "Invalid object id") => {
   if (!mongoose.Types.ObjectId.isValid(_id)) {
-    throw new AppError("Invalid category id", StatusCodes.BAD_REQUEST);
+    throw new AppError(message, StatusCodes.BAD_REQUEST);
   }
 };
-const validateObjectIds = (_ids) => {
-  _ids.forEach((id) => validateObjectId(id));
+
+const validateObjectIds = (_ids, message = "Invalid object id") => {
+  if (!Array.isArray(_ids) || _ids.length === 0) {
+    throw new AppError("At least one id is required", StatusCodes.BAD_REQUEST);
+  }
+
+  _ids.forEach((id) => validateObjectId(id, message));
 };
+
 const pickAllowedFields = (payload, allowedFields = []) => {
   return allowedFields.reduce((result, field) => {
     if (payload[field] !== undefined) {
@@ -22,40 +29,76 @@ const pickAllowedFields = (payload, allowedFields = []) => {
     return result;
   }, {});
 };
-const validateCategoriesExist = async (categoryIds = []) => {
-  if (!Array.isArray(categoryIds) || categoryIds.length === 0) return;
 
-  const existingCategories = await Category.find({
-    _id: { $in: categoryIds },
-  }).select("_id");
+const validateDocumentsExist = async ({
+  ids = [],
+  model,
+  invalidIdMessage = "Invalid object id",
+  notFoundMessage = "One or more documents do not exist",
+}) => {
+  if (!Array.isArray(ids) || ids.length === 0) return;
 
-  if (existingCategories.length !== categoryIds.length) {
-    throw new AppError(
-      "One or more categories do not exist",
-      StatusCodes.BAD_REQUEST
-    );
+  validateObjectIds(ids, invalidIdMessage);
+
+  const uniqueIds = [...new Set(ids.map(String))];
+  const existingDocuments = await model
+    .find({
+      _id: { $in: uniqueIds },
+    })
+    .select("_id")
+    .lean();
+
+  if (existingDocuments.length !== uniqueIds.length) {
+    throw new AppError(notFoundMessage, StatusCodes.BAD_REQUEST);
   }
+};
+
+const validateDocumentExist = async ({
+  id,
+  model,
+  invalidIdMessage = "Invalid object id",
+  notFoundMessage = "Document not found",
+}) => {
+  validateObjectId(id, invalidIdMessage);
+
+  const exists = await model.exists({ _id: id });
+  if (!exists) {
+    throw new AppError(notFoundMessage, StatusCodes.NOT_FOUND);
+  }
+
+  return true;
+};
+
+const validateCategoriesExist = async (categoryIds = []) => {
+  return validateDocumentsExist({
+    ids: categoryIds,
+    model: Category,
+    invalidIdMessage: "Invalid category id",
+    notFoundMessage: "One or more categories do not exist",
+  });
 };
 
 const validateProductExist = async (productId) => {
-  validateObjectId(productId, "Invalid product id");
-
-  const exists = await Product.exists({ _id: productId });
-  if (!exists) {
-    throw new AppError("Product not found", StatusCodes.NOT_FOUND);
-  }
+  return validateDocumentExist({
+    id: productId,
+    model: Product,
+    invalidIdMessage: "Invalid product id",
+    notFoundMessage: "Product not found",
+  });
 };
 
 const validateColorExist = async (colorId) => {
-  validateObjectId(colorId, "Invalid color id");
-
-  const exists = await Color.exists({ _id: colorId });
-  if (!exists) {
-    throw new AppError("Color not found", StatusCodes.NOT_FOUND);
-  }
+  return validateDocumentExist({
+    id: colorId,
+    model: Color,
+    invalidIdMessage: "Invalid color id",
+    notFoundMessage: "Color not found",
+  });
 };
 
 const validateVariantUnique = async ({ product, color, excludeId }) => {
+  if (!product || !color) return true;
+
   const filter = { product, color };
   if (excludeId) {
     filter._id = { $ne: excludeId };
@@ -76,34 +119,29 @@ const validateProductVariantDependencies = async ({ product, color }) => {
 };
 
 const validateProductVariantExist = async (variantId) => {
-  if (!mongoose.Types.ObjectId.isValid(variantId)) {
-    throw new AppError(
-      "Product variant ID is invalid",
-      StatusCodes.BAD_REQUEST
-    );
-  }
-
-  const variant = await ProductVariant.findById(variantId).select("_id");
-  if (!variant) {
-    throw new AppError("Product variant not found", StatusCodes.NOT_FOUND);
-  }
-
-  return true;
+  return validateDocumentExist({
+    id: variantId,
+    model: ProductVariant,
+    invalidIdMessage: "Product variant ID is invalid",
+    notFoundMessage: "Product variant not found",
+  });
 };
 
 const validateSizeExist = async (sizeId) => {
-  validateObjectId(sizeId, "Invalid size id");
-
-  const exists = await Size.exists({ _id: sizeId });
-  if (!exists) {
-    throw new AppError("Size not found", StatusCodes.NOT_FOUND);
-  }
-  return true;
+  return validateDocumentExist({
+    id: sizeId,
+    model: Size,
+    invalidIdMessage: "Invalid size id",
+    notFoundMessage: "Size not found",
+  });
 };
+
 module.exports = {
   validateObjectId,
   validateObjectIds,
   pickAllowedFields,
+  validateDocumentExist,
+  validateDocumentsExist,
   validateCategoriesExist,
   validateProductVariantDependencies,
   validateVariantUnique,

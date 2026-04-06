@@ -57,9 +57,10 @@ const getDetail = async (_id) => {
 const removeMany = async (imageIds) => {
   return new Promise(async (resolve, reject) => {
     try {
+      Helper.validateObjectIds(imageIds);
+
       const images = await Image.find({
         _id: { $in: imageIds },
-        productVariant: variantId,
       });
 
       if (!images.length) {
@@ -67,12 +68,11 @@ const removeMany = async (imageIds) => {
       }
       await Promise.all(
         images.map((image) => {
-          cloudinary.uploader.destroy(image.public_id);
+          return cloudinary.uploader.destroy(image.public_id);
         }),
       );
       const result = await Image.deleteMany({
         _id: { $in: imageIds },
-        productVariant: variantId,
       });
 
       resolve({ deletedCount: result.deletedCount });

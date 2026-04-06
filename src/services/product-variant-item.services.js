@@ -36,6 +36,7 @@ const getList = async (query) => {
       const {
         page = 1,
         limit = 10,
+        search = "",
         all = false,
         sortBy = "createdAt",
         order = "desc",
@@ -91,6 +92,7 @@ const getList = async (query) => {
 const getDetail = async (itemId) => {
   return new Promise(async (resolve, reject) => {
     try {
+      Helper.validateObjectId(itemId);
       const item = await ProductVariantItem.findOne({
         _id: itemId,
       })

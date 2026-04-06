@@ -109,12 +109,28 @@ const get = async (query) => {
   });
 };
 const getDetail = async (_id) => {
+  console.log(_id)
   return new Promise(async (resolve, reject) => {
     try {
-      const checkedProduct = await Product.findById(_id).populate(
-        "categories",
-        "name description",
-      );
+      const checkedProduct = await Product.findById(_id)
+        .populate("categories", "name description")
+        .populate({
+          path: "variants",
+          populate: [
+            {
+              path: "items",
+              populate: {
+                path: "size",
+                select: "name",
+              },
+            },
+            {
+              path: "images",
+              select: "image_url public_id",
+            },
+          ],
+        });
+      console.log(checkedProduct);
       if (!checkedProduct) {
         throw new AppError(
           "Product with this ID does not exist",
@@ -254,7 +270,7 @@ const createMany = async (productsData, uploadedFiles) => {
         variants: variantIds,
       });
     }
-    console.log('imageDocs',imageDocs)
+    console.log("imageDocs", imageDocs);
     if (imageDocs.length) await Image.insertMany(imageDocs, { session });
 
     if (itemDocs.length)

@@ -40,7 +40,7 @@ const login = async (req, res, next) => {
     next(error);
   }
 };
-const getUserInfo = async (req, res) => {
+const getUserInfo = async (req, res, next) => {
   try {
     const user = await UserServices.getUserInfo(req?.user?.userId);
     return res
@@ -75,7 +75,7 @@ const refreshToken = async (req, res, next) => {
 };
 const update = async (req, res, next) => {
   try {
-    const result = await UserServices.update(req.params._id, req.body);
+    const result = await UserServices.update(req.user, req.params._id, req.body);
     return res.status(StatusCodes.OK).json({
       success: true,
       data: result,

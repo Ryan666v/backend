@@ -48,7 +48,7 @@ const get = async (query) => {
           .sort(sort)
           .lean();
 
-        resolve({
+        return resolve({
           all: true,
           total: data.length,
           data,

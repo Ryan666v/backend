@@ -10,6 +10,7 @@ const create = async (req, res, next) => {
 };
 const list = async (req, res, next) => {
   try {
+    console.log("run")
     const result = await ProductServices.get(req.query);
     return res.status(StatusCodes.OK).json({ success: true, ...result });
   } catch (error) {
@@ -19,6 +20,7 @@ const list = async (req, res, next) => {
 
 const getDetail = async (req, res, next) => {
   try {
+    console.log("id", req?.params._id)
     const result = await ProductServices.getDetail(req.params._id);
     return res.status(StatusCodes.OK).json({ success: true, data: result });
   } catch (error) {

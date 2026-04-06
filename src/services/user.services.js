@@ -92,21 +92,30 @@ const refreshToken = (token) => {
   });
 };
 
-const update = async (_id, payload) => {
+const update = async (actor, _id, payload) => {
   return new Promise(async (resolve, reject) => {
     try {
       Helper.validateObjectId(_id);
+      if (!actor?.userId) {
+        throw new AppError("Unauthorized", StatusCodes.UNAUTHORIZED);
+      }
+
+      const isAdmin = actor.role === "admin";
+      const isSelf = actor.userId === _id;
+
+      if (!isAdmin && !isSelf) {
+        throw new AppError("Access denied", StatusCodes.FORBIDDEN);
+      }
+
+      const allowedFields = ["username", "email", "phone", "gender", "dob"];
+      if (isAdmin) {
+        allowedFields.push("role");
+      }
+
       const updatedUser = await User.findByIdAndUpdate(
         _id,
         {
-          $set: Helper.pickAllowedFields(payload, [
-            "username",
-            "email",
-            "phone",
-            "gender",
-            "dob",
-            "role",
-          ]),
+          $set: Helper.pickAllowedFields(payload, allowedFields),
         },
         {
           new: true,

@@ -43,7 +43,7 @@ const get = async (query) => {
       const sort = { [sortField]: sortOrder };
       if (all === true || all === "true") {
         const data = await Color.find(filter).sort(sort).lean();
-        resolve({
+        return resolve({
           all: true,
           total: data.length,
           data,

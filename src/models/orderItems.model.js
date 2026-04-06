@@ -11,8 +11,11 @@ const orderItemSchema = new mongoose.Schema(
       ref: "ProductVariantItem",
       required: true,
     },
+    productName: { type: String, required: true, trim: true },
+    sizeName: { type: String, required: true, trim: true },
     quantity: { type: Number, required: true, min: 1 },
     price: { type: Number, required: true, min: 0 },
+    lineTotal: { type: Number, required: true, min: 0 },
   },
   {
     timestamps: true,
