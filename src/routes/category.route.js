@@ -12,7 +12,6 @@ categoryRouter.post(
 categoryRouter.get("/list", categoryValidation.getList, categoryController.get);
 categoryRouter.get(
   "/:_id",
-  authMiddleware.authAdmin,
   categoryValidation.getDetail,
   categoryController.getDetail
 );

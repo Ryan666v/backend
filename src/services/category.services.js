@@ -1,7 +1,15 @@
 const { StatusCodes } = require("http-status-codes");
 const Category = require("../models/category.model");
+const Image = require("../models/image.model");
 const AppError = require("../utils/AppError");
 const Helper = require("../utils/helper");
+const cloudinary = require("../configs/cloudinary");
+
+const categoryImagePopulate = {
+  path: "image",
+  select: "image_url public_id createdAt updatedAt",
+};
+
 const create = async (newCategory) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -25,6 +33,7 @@ const create = async (newCategory) => {
     }
   });
 };
+
 const get = async (query) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -43,9 +52,11 @@ const get = async (query) => {
         : "createdAt";
       const sortOrder = order === "asc" ? 1 : -1;
       const sort = { [sortField]: sortOrder };
+
       if (all === true || all === "true") {
         const data = await Category.find(filter)
-          .select("_id name description createdAt updatedAt")
+          .select("_id name description type image createdAt updatedAt")
+          .populate(categoryImagePopulate)
           .sort(sort)
           .lean();
 
@@ -55,10 +66,16 @@ const get = async (query) => {
           data,
         });
       }
+
       const skip = (page - 1) * limit;
 
       const [categories, total] = await Promise.all([
-        Category.find(filter).skip(skip).limit(limit).sort(sort).lean(),
+        Category.find(filter)
+          .skip(skip)
+          .limit(limit)
+          .sort(sort)
+          .populate(categoryImagePopulate)
+          .lean(),
         Category.countDocuments(filter),
       ]);
       resolve({
@@ -75,10 +92,13 @@ const get = async (query) => {
     }
   });
 };
+
 const getDetail = async (_id) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const checkedCategory = await Category.findOne({ _id: _id });
+      const checkedCategory = await Category.findOne({ _id }).populate(
+        categoryImagePopulate
+      );
       if (!checkedCategory) {
         throw new AppError(
           "Category with this ID does not exist",
@@ -91,18 +111,28 @@ const getDetail = async (_id) => {
     }
   });
 };
+
 const update = async (_id, payload) => {
   return new Promise(async (resolve, reject) => {
     try {
       Helper.validateObjectId(_id);
       const updatedCategory = await Category.findByIdAndUpdate(
         _id,
-        { $set: Helper.pickAllowedFields(payload, ["name", "description"]) },
+        {
+          $set: Helper.pickAllowedFields(payload, [
+            "name",
+            "description",
+            "type",
+            "image",
+          ]),
+        },
         {
           new: true,
           runValidators: true,
         }
-      ).lean();
+      )
+        .populate(categoryImagePopulate)
+        .lean();
       if (!updatedCategory) {
         throw new AppError("Category not found", StatusCodes.NOT_FOUND);
       }
@@ -113,10 +143,35 @@ const update = async (_id, payload) => {
     }
   });
 };
+
 const remove = async (_ids) => {
   return new Promise(async (resolve, reject) => {
     try {
       Helper.validateObjectIds(_ids);
+
+      const categories = await Category.find({
+        _id: { $in: _ids },
+      })
+        .select("image")
+        .populate(categoryImagePopulate)
+        .lean();
+
+      const imageDocs = categories
+        .map((category) => category.image)
+        .filter(Boolean);
+
+      if (imageDocs.length) {
+        await Promise.all(
+          imageDocs.map((image) =>
+            cloudinary.uploader.destroy(image.public_id).catch(() => null)
+          )
+        );
+
+        await Image.deleteMany({
+          _id: { $in: imageDocs.map((image) => image._id) },
+        });
+      }
+
       const result = await Category.deleteMany({
         _id: { $in: _ids },
       });

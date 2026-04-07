@@ -51,7 +51,11 @@ const remove = async (req, res, next) => {
 };
 const createMany = async (req, res, next) => {
   try {
-    const productsData = JSON.parse(req.body.products);
+    const productsData = Array.isArray(req.body.products)
+      ? req.body.products
+      : typeof req.body.products === "string"
+        ? JSON.parse(req.body.products)
+        : req.body.products || [];
     const uploadedFiles = req.files;
 
     const result = await ProductServices.createMany(productsData, uploadedFiles);

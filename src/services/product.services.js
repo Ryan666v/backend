@@ -1,4 +1,4 @@
-const { StatusCodes } = require("http-status-codes");
+﻿const { StatusCodes } = require("http-status-codes");
 const Product = require("../models/product.model");
 const AppError = require("../utils/AppError");
 const Helper = require("../utils/helper");
@@ -7,6 +7,19 @@ const Image = require("../models/image.model");
 const ProductVariant = require("../models/product-variant.model");
 const ProductVariantItem = require("../models/product-variant-item.model");
 const cloudinary = require("../configs/cloudinary");
+
+const parseObjectIdList = (value) =>
+  String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .filter((item) => mongoose.Types.ObjectId.isValid(item));
+
+const intersectIds = (left = null, right = []) => {
+  const normalizedRight = right.map((id) => String(id));
+  if (!left) return normalizedRight;
+  return left.filter((id) => normalizedRight.includes(String(id)));
+};
 
 const create = async (newProduct) => {
   return new Promise(async (resolve, reject) => {
@@ -32,8 +45,70 @@ const get = async (query) => {
         all = false,
         sortBy = "createdAt",
         order = "desc",
+        category,
+        size,
+        color,
+        minPrice,
+        maxPrice,
       } = query;
-      const filter = search ? { name: { $regex: search, $options: "i" } } : {};
+      const filter = {};
+
+      if (search) {
+        filter.name = { $regex: search, $options: "i" };
+      }
+
+      if (category) {
+        filter.categories = category;
+      }
+
+      const sizeIds = parseObjectIdList(size);
+      const colorIds = parseObjectIdList(color);
+      let matchedProductIds = null;
+
+      if (colorIds.length) {
+        const colorMatchedProductIds = await ProductVariant.distinct("product", {
+          color: { $in: colorIds },
+        });
+        matchedProductIds = intersectIds(matchedProductIds, colorMatchedProductIds);
+      }
+
+      if (sizeIds.length || minPrice !== undefined || maxPrice !== undefined) {
+        const variantItemFilter = {};
+
+        if (sizeIds.length) {
+          variantItemFilter.size = { $in: sizeIds };
+        }
+
+        if (minPrice !== undefined || maxPrice !== undefined) {
+          variantItemFilter.price = {};
+
+          if (minPrice !== undefined) {
+            variantItemFilter.price.$gte = Number(minPrice);
+          }
+
+          if (maxPrice !== undefined) {
+            variantItemFilter.price.$lte = Number(maxPrice);
+          }
+        }
+
+        const matchedVariantItemIds = await ProductVariantItem.find(variantItemFilter)
+          .select("_id")
+          .lean();
+
+        const variantItemIds = matchedVariantItemIds.map((item) => item._id);
+        const sizePriceMatchedProductIds = await ProductVariant.distinct("product", {
+          items: { $in: variantItemIds },
+        });
+
+        matchedProductIds = intersectIds(matchedProductIds, sizePriceMatchedProductIds);
+      }
+
+      if (matchedProductIds) {
+        filter._id = {
+          $in: matchedProductIds.map((id) => new mongoose.Types.ObjectId(id)),
+        };
+      }
+
       const allowedSortFields = ["name", "createdAt", "updatedAt"];
       const sortField = allowedSortFields.includes(sortBy)
         ? sortBy
@@ -46,6 +121,10 @@ const get = async (query) => {
           .populate({
             path: "variants",
             populate: [
+              {
+                path: "color",
+                select: "name code",
+              },
               {
                 path: "items",
                 populate: {
@@ -66,6 +145,7 @@ const get = async (query) => {
           total: data.length,
           data,
         });
+        return;
       }
       const skip = (page - 1) * limit;
 
@@ -75,6 +155,10 @@ const get = async (query) => {
           .populate({
             path: "variants",
             populate: [
+              {
+                path: "color",
+                select: "name code",
+              },
               {
                 path: "items",
                 populate: {
@@ -96,6 +180,7 @@ const get = async (query) => {
       ]);
       resolve({
         data: products,
+        // data: [],
         pagination: {
           total,
           page: Number(page),
@@ -108,8 +193,8 @@ const get = async (query) => {
     }
   });
 };
+
 const getDetail = async (_id) => {
-  console.log(_id)
   return new Promise(async (resolve, reject) => {
     try {
       const checkedProduct = await Product.findById(_id)
@@ -117,6 +202,10 @@ const getDetail = async (_id) => {
         .populate({
           path: "variants",
           populate: [
+            {
+              path: "color",
+              select: "name code",
+            },
             {
               path: "items",
               populate: {
@@ -130,7 +219,6 @@ const getDetail = async (_id) => {
             },
           ],
         });
-      console.log(checkedProduct);
       if (!checkedProduct) {
         throw new AppError(
           "Product with this ID does not exist",
@@ -143,6 +231,7 @@ const getDetail = async (_id) => {
     }
   });
 };
+
 const update = async (_id, payload) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -176,22 +265,94 @@ const update = async (_id, payload) => {
     }
   });
 };
-const remove = async (_ids) => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      Helper.validateObjectIds(_ids);
-      const result = await Product.deleteMany({
-        _id: { $in: _ids },
-      });
 
-      if (result.deletedCount === 0) {
-        throw new AppError("No products were deleted", StatusCodes.NOT_FOUND);
-      }
-      resolve({ deletedCount: result.deletedCount });
-    } catch (error) {
-      reject(error);
+const remove = async (_ids) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    Helper.validateObjectIds(_ids);
+
+    const products = await Product.find({
+      _id: { $in: _ids },
+    }).lean();
+
+    if (!products.length) {
+      throw new AppError("No products were deleted", StatusCodes.NOT_FOUND);
     }
-  });
+
+    const variantIds = [
+      ...new Set(products.flatMap((product) => product.variants || []).map(String)),
+    ];
+
+    const variants = variantIds.length
+      ? await ProductVariant.find({
+          _id: { $in: variantIds },
+        }).lean()
+      : [];
+
+    const itemIds = [
+      ...new Set(variants.flatMap((variant) => variant.items || []).map(String)),
+    ];
+    const imageIds = [
+      ...new Set(variants.flatMap((variant) => variant.images || []).map(String)),
+    ];
+
+    const images = imageIds.length
+      ? await Image.find({
+          _id: { $in: imageIds },
+        }).lean()
+      : [];
+
+    const result = await Product.deleteMany(
+      {
+        _id: { $in: _ids },
+      },
+      { session },
+    );
+
+    if (variantIds.length) {
+      await ProductVariant.deleteMany(
+        {
+          _id: { $in: variantIds },
+        },
+        { session },
+      );
+    }
+
+    if (itemIds.length) {
+      await ProductVariantItem.deleteMany(
+        {
+          _id: { $in: itemIds },
+        },
+        { session },
+      );
+    }
+
+    if (imageIds.length) {
+      await Image.deleteMany(
+        {
+          _id: { $in: imageIds },
+        },
+        { session },
+      );
+    }
+
+    await session.commitTransaction();
+
+    await Promise.all(
+      images.map((image) =>
+        cloudinary.uploader.destroy(image.public_id).catch(() => null),
+      ),
+    );
+
+    return { deletedCount: result.deletedCount };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
 };
 
 const createMany = async (productsData, uploadedFiles) => {
@@ -200,6 +361,23 @@ const createMany = async (productsData, uploadedFiles) => {
 
   try {
     let fileIndex = 0;
+    console.log("run here")
+    const expectedImageCount = (productsData || []).reduce(
+      (total, product) =>
+        total +
+        (product.variants || []).reduce(
+          (variantTotal, variant) => variantTotal + (variant.imageCount || 0),
+          0,
+        ),
+      0,
+    );
+
+    if ((uploadedFiles?.length || 0) !== expectedImageCount) {
+      throw new AppError(
+        "Số lượng ảnh tải lên không khớp với dữ liệu biến thể",
+        StatusCodes.UNPROCESSABLE_ENTITY,
+      );
+    }
 
     const imageDocs = [];
     const itemDocs = [];
@@ -207,14 +385,21 @@ const createMany = async (productsData, uploadedFiles) => {
     const productDocs = [];
 
     for (const productData of productsData) {
+      await Helper.validateCategoriesExist(productData.categories);
+      const productId = new mongoose.Types.ObjectId();
       const variantIds = [];
 
       for (const variantData of productData.variants || []) {
-        const imageCount = variantData.imageCount || 0;
-        const variantFiles = uploadedFiles.slice(
-          fileIndex,
-          fileIndex + imageCount,
-        );
+        const imageCount = Number(variantData.imageCount || 0);
+
+        if (imageCount < 1 || imageCount > 4) {
+          throw new AppError(
+            "Mỗi biến thể phải có từ 1 đến 4 hình ảnh",
+            StatusCodes.UNPROCESSABLE_ENTITY,
+          );
+        }
+
+        const variantFiles = uploadedFiles.slice(fileIndex, fileIndex + imageCount);
         fileIndex += imageCount;
 
         const imageIds = [];
@@ -251,6 +436,7 @@ const createMany = async (productsData, uploadedFiles) => {
 
         variantDocs.push({
           _id: variantId,
+          product: productId,
           name: variantData.name,
           color: variantData.color,
           images: imageIds,
@@ -260,8 +446,6 @@ const createMany = async (productsData, uploadedFiles) => {
         variantIds.push(variantId);
       }
 
-      const productId = new mongoose.Types.ObjectId();
-
       productDocs.push({
         _id: productId,
         name: productData.name,
@@ -270,15 +454,10 @@ const createMany = async (productsData, uploadedFiles) => {
         variants: variantIds,
       });
     }
-    console.log("imageDocs", imageDocs);
+
     if (imageDocs.length) await Image.insertMany(imageDocs, { session });
-
-    if (itemDocs.length)
-      await ProductVariantItem.insertMany(itemDocs, { session });
-
-    if (variantDocs.length)
-      await ProductVariant.insertMany(variantDocs, { session });
-
+    if (itemDocs.length) await ProductVariantItem.insertMany(itemDocs, { session });
+    if (variantDocs.length) await ProductVariant.insertMany(variantDocs, { session });
     if (productDocs.length) await Product.insertMany(productDocs, { session });
 
     await session.commitTransaction();
@@ -300,4 +479,5 @@ const createMany = async (productsData, uploadedFiles) => {
     session.endSession();
   }
 };
+
 module.exports = { create, get, getDetail, update, remove, createMany };

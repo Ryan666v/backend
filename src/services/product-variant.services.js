@@ -1,7 +1,12 @@
 const { StatusCodes } = require("http-status-codes");
 const ProductVariant = require("../models/product-variant.model");
+const Product = require("../models/product.model");
+const Image = require("../models/image.model");
+const ProductVariantItem = require("../models/product-variant-item.model");
 const AppError = require("../utils/AppError");
 const Helper = require("../utils/helper");
+const cloudinary = require("../configs/cloudinary");
+const { default: mongoose } = require("mongoose");
 
 const create = async (payload) => {
   return new Promise(async (resolve, reject) => {
@@ -170,21 +175,82 @@ const update = async (_id, payload) => {
   });
 };
 const remove = async (_ids) => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      Helper.validateObjectIds(_ids);
-      const result = await ProductVariant.deleteMany({
-        _id: { $in: _ids },
-      });
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-      if (result.deletedCount === 0) {
-        throw new AppError("No products were deleted", StatusCodes.NOT_FOUND);
-      }
-      resolve({ deletedCount: result.deletedCount });
-    } catch (error) {
-      reject(error);
+  try {
+    Helper.validateObjectIds(_ids);
+
+    const variants = await ProductVariant.find({
+      _id: { $in: _ids },
+    }).lean();
+
+    if (!variants.length) {
+      throw new AppError("No variants were deleted", StatusCodes.NOT_FOUND);
     }
-  });
+
+    const imageIds = [...new Set(variants.flatMap((variant) => variant.images || []).map(String))];
+    const itemIds = [...new Set(variants.flatMap((variant) => variant.items || []).map(String))];
+    const productIds = [...new Set(variants.map((variant) => String(variant.product)))];
+
+    const images = imageIds.length
+      ? await Image.find({ _id: { $in: imageIds } }).lean()
+      : [];
+
+    const result = await ProductVariant.deleteMany(
+      {
+        _id: { $in: _ids },
+      },
+      { session },
+    );
+
+    if (itemIds.length) {
+      await ProductVariantItem.deleteMany(
+        {
+          _id: { $in: itemIds },
+        },
+        { session },
+      );
+    }
+
+    if (imageIds.length) {
+      await Image.deleteMany(
+        {
+          _id: { $in: imageIds },
+        },
+        { session },
+      );
+    }
+
+    if (productIds.length) {
+      await Product.updateMany(
+        {
+          _id: { $in: productIds },
+        },
+        {
+          $pull: {
+            variants: { $in: _ids },
+          },
+        },
+        { session },
+      );
+    }
+
+    await session.commitTransaction();
+
+    await Promise.all(
+      images.map((image) =>
+        cloudinary.uploader.destroy(image.public_id).catch(() => null),
+      ),
+    );
+
+    return { deletedCount: result.deletedCount };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
 };
 
 module.exports = { create, get, getDetail, update, remove };

@@ -2,18 +2,34 @@ const { StatusCodes } = require("http-status-codes");
 const Joi = require("joi");
 const AppError = require("../utils/AppError");
 
+const categoryTypeSchema = Joi.string().valid(
+  "shirt",
+  "pants",
+  "accessory",
+  "price"
+);
+
+const imageIdSchema = Joi.alternatives().try(
+  Joi.string().length(24).hex(),
+  Joi.allow(null)
+);
+
 const createNew = async (req, res, next) => {
   try {
     await Joi.object({
       name: Joi.string().trim().min(2).max(100).required().messages({
-        "string.base": "Tên category phải là chuỗi",
-        "string.empty": "Tên category không được để trống",
-        "any.required": "Tên category là bắt buộc",
+        "string.base": "Ten category phai la chuoi",
+        "string.empty": "Ten category khong duoc de trong",
+        "any.required": "Ten category la bat buoc",
       }),
-
       description: Joi.string().trim().allow("").max(500).messages({
-        "string.base": "Mô tả phải là chuỗi",
+        "string.base": "Mo ta phai la chuoi",
       }),
+      type: categoryTypeSchema.required().messages({
+        "any.only": "Loai category khong hop le",
+        "any.required": "Loai category la bat buoc",
+      }),
+      image: imageIdSchema.optional(),
     }).validateAsync(req.body, {
       abortEarly: false,
     });
@@ -24,6 +40,7 @@ const createNew = async (req, res, next) => {
     );
   }
 };
+
 const getList = async (req, res, next) => {
   try {
     await Joi.object({
@@ -45,12 +62,13 @@ const getList = async (req, res, next) => {
     );
   }
 };
+
 const getDetail = async (req, res, next) => {
   try {
     await Joi.object({
       _id: Joi.string().length(24).hex().required().messages({
-        "string.length": "ID không hợp lệ",
-        "string.hex": "ID không đúng định dạng ObjectId",
+        "string.length": "ID khong hop le",
+        "string.hex": "ID khong dung dinh dang ObjectId",
       }),
     }).validateAsync(req.params, {
       abortEarly: false,
@@ -62,11 +80,14 @@ const getDetail = async (req, res, next) => {
     );
   }
 };
+
 const update = async (req, res, next) => {
   try {
     await Joi.object({
       name: Joi.string().trim().min(2).max(100).optional(),
       description: Joi.string().trim().allow("").max(500).optional(),
+      type: categoryTypeSchema.optional(),
+      image: imageIdSchema.optional(),
     })
       .min(1)
       .validateAsync(req.body, {
@@ -79,6 +100,7 @@ const update = async (req, res, next) => {
     );
   }
 };
+
 const remove = async (req, res, next) => {
   try {
     await Joi.object({
@@ -87,7 +109,7 @@ const remove = async (req, res, next) => {
         .min(1)
         .required()
         .messages({
-          "array.min": "Phải chọn ít nhất 1 category để xóa",
+          "array.min": "Phai chon it nhat 1 category de xoa",
         }),
     }).validateAsync(req.body, {
       abortEarly: false,
@@ -99,6 +121,7 @@ const remove = async (req, res, next) => {
     );
   }
 };
+
 module.exports = {
   createNew,
   getList,

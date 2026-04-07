@@ -1,9 +1,10 @@
-const express = require("express");
+﻿const express = require("express");
 const productRouter = express.Router();
 const productController = require("../controllers/product.controller");
 const productValidation = require("../validations/product.validation");
 const authMiddleware = require("../middlewares/auth.middleware");
 const { bulkUpload } = require("../middlewares/multer.middleware");
+
 productRouter.post(
   "/create",
   authMiddleware.authAdmin,
@@ -32,6 +33,8 @@ productRouter.post(
   "/bulk_create",
   authMiddleware.authAdmin,
   bulkUpload.any(),
-  productController.createMany
+  productValidation.createMany,
+  productController.createMany,
 );
+
 module.exports = productRouter;
