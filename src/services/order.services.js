@@ -201,7 +201,7 @@ const create = async (actor, payload, req) => {
         vnp_TxnRef: orderCode,
         vnp_OrderInfo: `Thanh toan don hang ${orderCode}`,
         vnp_OrderType: "other",
-        vnp_ReturnUrl: `${env.APP_HOST}/api/order/vnpay-return`,
+        vnp_ReturnUrl: `${env.APP_HOST}/checkout/payment-result`,
         vnp_Locale: "vn",
       });
     }
