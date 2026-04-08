@@ -73,6 +73,27 @@ const refreshToken = async (req, res, next) => {
     next(error);
   }
 };
+const logout = async (req, res, next) => {
+  try {
+    res.clearCookie("access_token", {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: "/",
+    });
+    res.clearCookie("refresh_token", {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: "/",
+    });
+    return res.status(StatusCodes.OK).json({
+      message: "Logout successful",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 const update = async (req, res, next) => {
   try {
     const result = await UserServices.update(req.user, req.params._id, req.body);
@@ -84,4 +105,27 @@ const update = async (req, res, next) => {
     next(error);
   }
 };
-module.exports = { createUser, login, getUserInfo, refreshToken, update };
+const changePassword = async (req, res, next) => {
+  try {
+    const result = await UserServices.changePassword(
+      req.user,
+      req.params._id,
+      req.body
+    );
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+module.exports = {
+  createUser,
+  login,
+  getUserInfo,
+  refreshToken,
+  logout,
+  update,
+  changePassword,
+};

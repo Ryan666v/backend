@@ -72,4 +72,22 @@ const update = async (req, res, next) => {
     );
   }
 };
-module.exports = { createNew, login, getUserInfo, update };
+const changePassword = async (req, res, next) => {
+  try {
+    await Joi.object({
+      currentPassword: Joi.string().min(6).required(),
+      newPassword: Joi.string().min(6).required(),
+      confirmPassword: Joi.string()
+        .valid(Joi.ref("newPassword"))
+        .required(),
+    }).validateAsync(req.body, {
+      abortEarly: false,
+    });
+    next();
+  } catch (error) {
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
+  }
+};
+module.exports = { createNew, login, getUserInfo, update, changePassword };

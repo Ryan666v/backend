@@ -134,4 +134,54 @@ const update = async (actor, _id, payload) => {
     }
   });
 };
-module.exports = { createUser, login, getUserInfo, refreshToken, update };
+const changePassword = async (actor, _id, payload) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      Helper.validateObjectId(_id);
+      if (!actor?.userId) {
+        throw new AppError("Unauthorized", StatusCodes.UNAUTHORIZED);
+      }
+
+      const isAdmin = actor.role === "admin";
+      const isSelf = String(actor.userId) === String(_id);
+
+      if (!isAdmin && !isSelf) {
+        throw new AppError("Access denied", StatusCodes.FORBIDDEN);
+      }
+
+      const user = await User.findById(_id);
+      if (!user) {
+        throw new AppError("User not found", StatusCodes.NOT_FOUND);
+      }
+
+      if (!isAdmin) {
+        const isMatch = await bcrypt.compare(
+          payload.currentPassword,
+          user.password
+        );
+
+        if (!isMatch) {
+          throw new AppError(
+            "Current password is incorrect",
+            StatusCodes.UNAUTHORIZED
+          );
+        }
+      }
+
+      user.password = await bcrypt.hash(payload.newPassword, 10);
+      await user.save();
+
+      resolve({ message: "Password changed successfully" });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+module.exports = {
+  createUser,
+  login,
+  getUserInfo,
+  refreshToken,
+  update,
+  changePassword,
+};
