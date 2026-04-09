@@ -1,8 +1,14 @@
 const { StatusCodes } = require("http-status-codes");
 const ImageServices = require("../services/image.services");
+
+const getImageMetadata = (body = {}) => ({
+  scope: body.scope,
+  slotKey: body.slotKey,
+});
+
 const createMany = async (req, res, next) => {
   try {
-    const result = await ImageServices.createMany(req.files);
+    const result = await ImageServices.createMany(req.files, getImageMetadata(req.body));
     return res.status(StatusCodes.CREATED).json(result);
   } catch (error) {
     if (req.files && req.files.length > 0) {
@@ -27,7 +33,7 @@ const update = async (req, res, next) => {
   try {
     const { _id } = req.params;
 
-    const result = await ImageServices.update(_id, req.files);
+    const result = await ImageServices.update(_id, req.files, getImageMetadata(req.body));
 
     return res.status(StatusCodes.OK).json({
       success: true,

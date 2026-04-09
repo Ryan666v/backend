@@ -3,7 +3,16 @@ const Image = require("../models/image.model");
 const AppError = require("../utils/AppError");
 const Helper = require("../utils/helper");
 const cloudinary = require("../configs/cloudinary");
-const createMany = async (files) => {
+const IMAGE_SCOPES = new Set(["product", "landing", "branding"]);
+
+const normalizeMetadata = (payload = {}) => {
+  const scope = IMAGE_SCOPES.has(payload.scope) ? payload.scope : "product";
+  const slotKey = typeof payload.slotKey === "string" ? payload.slotKey.trim() : "";
+
+  return { scope, slotKey };
+};
+
+const createMany = async (files, metadata) => {
   return new Promise(async (resolve, reject) => {
     try {
       if (!Array.isArray(files) || files.length === 0) {
@@ -17,9 +26,13 @@ const createMany = async (files) => {
         );
       }
 
+      const normalizedMetadata = normalizeMetadata(metadata);
+
       const imagesPayload = files.map((file) => ({
         image_url: file.path,
         public_id: file.filename,
+        scope: normalizedMetadata.scope,
+        slotKey: normalizedMetadata.slotKey,
       }));
 
       const createdImages = await Image.insertMany(imagesPayload);
@@ -81,7 +94,7 @@ const removeMany = async (imageIds) => {
     }
   });
 };
-const update = async (_id, files) => {
+const update = async (_id, files, metadata) => {
   return new Promise(async (resolve, reject) => {
     try {
       Helper.validateObjectId(_id);
@@ -91,6 +104,7 @@ const update = async (_id, files) => {
       }
 
       const file = files[0];
+      const normalizedMetadata = normalizeMetadata(metadata);
 
       const existingImage = await Image.findById(_id);
       if (!existingImage) {
@@ -103,6 +117,8 @@ const update = async (_id, files) => {
 
       existingImage.image_url = file.path;
       existingImage.public_id = file.filename;
+      existingImage.scope = normalizedMetadata.scope;
+      existingImage.slotKey = normalizedMetadata.slotKey;
 
       await existingImage.save();
 

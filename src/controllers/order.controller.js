@@ -49,6 +49,18 @@ const updateStatus = async (req, res, next) => {
   }
 };
 
+const bulkUpdateStatus = async (req, res, next) => {
+  try {
+    const result = await OrderServices.bulkUpdateStatus(req.body);
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const cancel = async (req, res, next) => {
   try {
     const result = await OrderServices.cancel(req.user, req.params._id);
@@ -80,6 +92,7 @@ module.exports = {
   list,
   getDetail,
   updateStatus,
+  bulkUpdateStatus,
   cancel,
   vnpayReturn,
   vnpayIpn,

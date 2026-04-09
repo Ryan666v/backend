@@ -5,6 +5,7 @@ const userValidation = require("../validations/user.validation");
 const authMiddleware = require("../middlewares/auth.middleware");
 userRouter.post("/create", userValidation.createNew, userController.createUser);
 userRouter.post("/login", userValidation.login, userController.login);
+userRouter.post("/google-login", userController.googleLogin);
 userRouter.post("/logout", userController.logout);
 userRouter.post("/refresh_token", userController.refreshToken);
 userRouter.get(

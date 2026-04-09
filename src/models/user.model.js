@@ -3,11 +3,12 @@ const userSchema = new mongoose.Schema(
   {
     username: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
-    password: { type: String, required: true, minlength: 6 },
+    password: { type: String, minlength: 6 },
+    googleId: { type: String, unique: true, sparse: true },
     role: { type: String, enum: ["user", "admin"], default: "user" },
-    phone: { type: String, required: true },
-    gender: { type: String, enum: ["male", "female", "other"], required: true },
-    dob: { type: Date, required: true },
+    phone: { type: String, default: "" },
+    gender: { type: String, enum: ["male", "female", "other", ""], default: "" },
+    dob: { type: Date, default: null },
   },
   {
     timestamps: true,

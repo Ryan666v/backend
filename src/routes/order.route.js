@@ -25,6 +25,12 @@ orderRouter.get(
   orderController.getDetail,
 );
 orderRouter.patch(
+  "/bulk-status",
+  authMiddleware.authAdmin,
+  orderValidation.bulkUpdateStatus,
+  orderController.bulkUpdateStatus,
+);
+orderRouter.patch(
   "/:_id/status",
   authMiddleware.authAdmin,
   orderValidation.getDetail,

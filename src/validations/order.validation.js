@@ -45,6 +45,9 @@ const getList = async (req, res, next) => {
       page: Joi.number().integer().min(1).default(1),
       limit: Joi.number().integer().min(1).max(100).default(10),
       all: Joi.boolean().default(false),
+      search: Joi.string().trim().allow("").default(""),
+      createdFrom: Joi.date().optional(),
+      createdTo: Joi.date().optional(),
       sortBy: Joi.string()
         .valid("createdAt", "updatedAt", "total", "status", "paymentStatus")
         .default("createdAt"),
@@ -103,9 +106,29 @@ const updateStatus = async (req, res, next) => {
   }
 };
 
+const bulkUpdateStatus = async (req, res, next) => {
+  try {
+    await Joi.object({
+      ids: Joi.array().items(objectId).min(1).required(),
+      status: Joi.string()
+        .valid("PENDING", "CONFIRMED", "SHIPPING", "COMPLETED", "CANCELLED")
+        .required(),
+    }).validateAsync(req.body, {
+      abortEarly: false,
+    });
+
+    next();
+  } catch (error) {
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY),
+    );
+  }
+};
+
 module.exports = {
   create,
   getList,
   getDetail,
   updateStatus,
+  bulkUpdateStatus,
 };

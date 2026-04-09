@@ -6,6 +6,29 @@ const jwt = require("jsonwebtoken");
 const env = require("../configs/environments");
 const jwtServices = require("./jwt.services");
 const Helper = require("../utils/helper");
+
+const sanitizeUsername = (value = "") =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .slice(0, 24);
+
+const buildUniqueUsername = async ({ name, email }) => {
+  const emailPrefix = email?.split("@")?.[0] || "user";
+  const baseUsername = sanitizeUsername(name) || sanitizeUsername(emailPrefix) || "user";
+  let candidate = baseUsername;
+  let counter = 0;
+
+  while (await User.exists({ username: candidate })) {
+    counter += 1;
+    candidate = `${baseUsername}${counter}`;
+  }
+
+  return candidate;
+};
+
 const createUser = (newUser) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -37,6 +60,12 @@ const login = (newUser) => {
         throw new AppError(
           "User with this email does not exist",
           StatusCodes.NOT_FOUND
+        );
+      }
+      if (!checkedUser.password) {
+        throw new AppError(
+          "This account uses Google sign-in",
+          StatusCodes.BAD_REQUEST
         );
       }
       const comparedPassword = await bcrypt.compare(
@@ -90,6 +119,43 @@ const refreshToken = (token) => {
       reject(error);
     }
   });
+};
+
+const loginWithGoogle = async ({ googleId, email, name, picture, emailVerified }) => {
+  if (!emailVerified) {
+    throw new AppError("Google email is not verified", StatusCodes.UNAUTHORIZED);
+  }
+
+  let user =
+    (googleId ? await User.findOne({ googleId }) : null) ||
+    (email ? await User.findOne({ email }) : null);
+
+  if (!user) {
+    const username = await buildUniqueUsername({ name, email });
+    user = await User.create({
+      username,
+      email,
+      googleId,
+      password: undefined,
+      phone: "",
+      gender: "",
+      dob: null,
+    });
+  } else if (!user.googleId && googleId) {
+    user.googleId = googleId;
+    await user.save();
+  }
+
+  return {
+    _id: user._id,
+    email: user.email,
+    role: user.role,
+    username: user.username,
+    phone: user.phone || "",
+    gender: user.gender || "",
+    dob: user.dob || null,
+    picture: picture || "",
+  };
 };
 
 const update = async (actor, _id, payload) => {
@@ -180,6 +246,7 @@ const changePassword = async (actor, _id, payload) => {
 module.exports = {
   createUser,
   login,
+  loginWithGoogle,
   getUserInfo,
   refreshToken,
   update,

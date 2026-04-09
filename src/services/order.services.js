@@ -11,6 +11,7 @@ const {
 const Order = require("../models/order.model");
 const OrderItem = require("../models/orderItems.model");
 const ProductVariantItem = require("../models/product-variant-item.model");
+const User = require("../models/user.model");
 const AppError = require("../utils/AppError");
 const Helper = require("../utils/helper");
 const vnpay = require("../configs/vnpay");
@@ -64,6 +65,32 @@ const populateOrderQuery = (query) =>
     (current, populateConfig) => current.populate(populateConfig),
     query,
   );
+
+const applyOrderStatusChange = async (order, nextStatus, session) => {
+  if (!order) {
+    throw new AppError("Order not found", StatusCodes.NOT_FOUND);
+  }
+
+  if (order.status === "COMPLETED") {
+    throw new AppError(
+      "Completed orders cannot be changed",
+      StatusCodes.CONFLICT,
+    );
+  }
+
+  if (nextStatus === "CANCELLED" && order.inventoryReserved) {
+    await restoreInventoryForOrder(order._id, session);
+    order.inventoryReserved = false;
+    order.paymentStatus =
+      order.paymentStatus === "PAID" ? "REFUNDED" : "CANCELLED";
+    order.cancelledAt = new Date();
+  }
+
+  order.status = nextStatus;
+  await order.save({ session });
+
+  return order;
+};
 
 const restoreInventoryForOrder = async (orderId, session) => {
   const orderItems = await OrderItem.find({ order: orderId }).session(session).lean();
@@ -231,6 +258,9 @@ const getList = async (actor, query) => {
         page = 1,
         limit = 10,
         all = false,
+        search = "",
+        createdFrom,
+        createdTo,
         sortBy = "createdAt",
         order = "desc",
         status,
@@ -248,6 +278,42 @@ const getList = async (actor, query) => {
         if (user) filter.user = user;
       } else {
         filter.user = actor.userId;
+      }
+
+      if (createdFrom || createdTo) {
+        filter.createdAt = {};
+        if (createdFrom) {
+          filter.createdAt.$gte = new Date(createdFrom);
+        }
+        if (createdTo) {
+          const endOfDay = new Date(createdTo);
+          endOfDay.setHours(23, 59, 59, 999);
+          filter.createdAt.$lte = endOfDay;
+        }
+      }
+
+      const normalizedSearch = String(search || "").trim();
+      if (normalizedSearch) {
+        const regex = new RegExp(normalizedSearch, "i");
+        const matchedUsers = await User.find(
+          {
+            $or: [{ username: regex }, { email: regex }, { phone: regex }],
+          },
+          { _id: 1 }
+        ).lean();
+
+        const userIds = matchedUsers.map((matchedUser) => matchedUser._id);
+        const searchConditions = [
+          { code: regex },
+          { name: regex },
+          { phone: regex },
+        ];
+
+        if (userIds.length) {
+          searchConditions.push({ user: { $in: userIds } });
+        }
+
+        filter.$or = searchConditions;
       }
 
       const allowedSortFields = [
@@ -327,30 +393,42 @@ const updateStatus = async (_id, payload) => {
     Helper.validateObjectId(_id);
 
     const order = await Order.findById(_id).session(session);
-    if (!order) {
-      throw new AppError("Order not found", StatusCodes.NOT_FOUND);
-    }
-
-    if (order.status === "COMPLETED") {
-      throw new AppError(
-        "Completed orders cannot be changed",
-        StatusCodes.CONFLICT,
-      );
-    }
-
-    if (payload.status === "CANCELLED" && order.inventoryReserved) {
-      await restoreInventoryForOrder(order._id, session);
-      order.inventoryReserved = false;
-      order.paymentStatus =
-        order.paymentStatus === "PAID" ? "REFUNDED" : "CANCELLED";
-      order.cancelledAt = new Date();
-    }
-
-    order.status = payload.status;
-    await order.save({ session });
+    await applyOrderStatusChange(order, payload.status, session);
 
     await session.commitTransaction();
     return await populateOrderQuery(Order.findById(order._id)).lean();
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+const bulkUpdateStatus = async (payload) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    Helper.validateObjectIds(payload.ids);
+
+    const orders = await Order.find({
+      _id: { $in: payload.ids },
+    }).session(session);
+
+    if (orders.length !== payload.ids.length) {
+      throw new AppError("One or more orders were not found", StatusCodes.NOT_FOUND);
+    }
+
+    for (const order of orders) {
+      await applyOrderStatusChange(order, payload.status, session);
+    }
+
+    await session.commitTransaction();
+
+    return await populateOrderQuery(
+      Order.find({ _id: { $in: payload.ids } }).sort({ createdAt: -1 })
+    ).lean();
   } catch (error) {
     await session.abortTransaction();
     throw error;
@@ -494,6 +572,7 @@ module.exports = {
   getList,
   getDetail,
   updateStatus,
+  bulkUpdateStatus,
   cancel,
   applyVnpayResult,
 };
