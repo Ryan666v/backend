@@ -147,6 +147,20 @@ const changePassword = async (req, res, next) => {
     );
   }
 };
+const toggleFavorite = async (req, res, next) => {
+  try {
+    await Joi.object({
+      productId: Joi.string().length(24).hex().required(),
+    }).validateAsync(req.body, {
+      abortEarly: false,
+    });
+    next();
+  } catch (error) {
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
+  }
+};
 module.exports = {
   createNew,
   requestEmailVerification,
@@ -157,4 +171,5 @@ module.exports = {
   getUserInfo,
   update,
   changePassword,
+  toggleFavorite,
 };

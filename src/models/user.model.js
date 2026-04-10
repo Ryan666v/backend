@@ -9,10 +9,19 @@ const userSchema = new mongoose.Schema(
     phone: { type: String, default: "" },
     gender: { type: String, enum: ["male", "female", "other", ""], default: "" },
     dob: { type: Date, default: null },
+    favorites: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+      },
+    ],
   },
   {
     timestamps: true,
     versionKey: false,
   },
 );
+
+userSchema.path("favorites").default(() => []);
+
 module.exports = mongoose.model("User", userSchema);

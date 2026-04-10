@@ -1,6 +1,7 @@
 const { StatusCodes } = require("http-status-codes");
 const User = require("../models/user.model");
 const AuthCode = require("../models/auth-code.model");
+const Product = require("../models/product.model");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const AppError = require("../utils/AppError");
@@ -86,6 +87,21 @@ const buildUniqueUsername = async ({ name, email }) => {
   return candidate;
 };
 
+const serializeFavoriteIds = (favorites = []) =>
+  favorites.map((favorite) => String(favorite?._id || favorite));
+
+const serializeUserPayload = (user, extra = {}) => ({
+  _id: user._id,
+  email: user.email,
+  role: user.role,
+  username: user.username,
+  phone: user.phone || "",
+  gender: user.gender || "",
+  dob: user.dob || null,
+  favorites: serializeFavoriteIds(user.favorites || []),
+  ...extra,
+});
+
 const createUser = (newUser) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -158,10 +174,7 @@ const login = (newUser) => {
         throw new AppError("Incorrect password", StatusCodes.UNAUTHORIZED);
       }
       resolve({
-        _id: checkedUser._id,
-        email: checkedUser.email,
-        role: checkedUser.role,
-        username: checkedUser.username,
+        ...serializeUserPayload(checkedUser),
       });
     } catch (error) {
       reject(error);
@@ -178,7 +191,10 @@ const getUserInfo = (_id) => {
           StatusCodes.NOT_FOUND
         );
       }
-      resolve(checkedUser);
+      resolve({
+        ...checkedUser.toObject(),
+        favorites: serializeFavoriteIds(checkedUser.favorites || []),
+      });
     } catch (error) {
       reject(error);
     }
@@ -320,14 +336,79 @@ const loginWithGoogle = async ({ googleId, email, name, picture, emailVerified }
   }
 
   return {
-    _id: user._id,
-    email: user.email,
-    role: user.role,
-    username: user.username,
-    phone: user.phone || "",
-    gender: user.gender || "",
-    dob: user.dob || null,
+    ...serializeUserPayload(user),
     picture: picture || "",
+  };
+};
+
+const getFavoriteProducts = async (userId) => {
+  const user = await User.findById(userId).select("favorites").lean();
+
+  if (!user) {
+    throw new AppError("User with this ID does not exist", StatusCodes.NOT_FOUND);
+  }
+
+  const favoriteIds = serializeFavoriteIds(user.favorites || []);
+
+  if (!favoriteIds.length) {
+    return [];
+  }
+
+  const products = await Product
+    .find({ _id: { $in: favoriteIds } })
+    .populate({
+      path: "variants",
+      populate: [
+        { path: "color", select: "name code" },
+        { path: "images" },
+        {
+          path: "items",
+          populate: { path: "size", select: "name" },
+        },
+      ],
+    })
+    .populate("categories", "name type")
+    .lean();
+
+  const productMap = new Map(products.map((product) => [String(product._id), product]));
+  return favoriteIds.map((id) => productMap.get(id)).filter(Boolean);
+};
+
+const toggleFavorite = async (actor, productId) => {
+  if (!actor?.userId) {
+    throw new AppError("Unauthorized", StatusCodes.UNAUTHORIZED);
+  }
+
+  Helper.validateObjectId(productId, "Invalid product id");
+  await Helper.validateProductExist(productId);
+
+  const user = await User.findById(actor.userId);
+
+  if (!user) {
+    throw new AppError("User with this ID does not exist", StatusCodes.NOT_FOUND);
+  }
+
+  const productIdString = String(productId);
+  user.favorites = user.favorites || [];
+
+  const existingIndex = user.favorites.findIndex(
+    (favorite) => String(favorite) === productIdString
+  );
+
+  let isFavorite = false;
+
+  if (existingIndex >= 0) {
+    user.favorites.splice(existingIndex, 1);
+  } else {
+    user.favorites.push(productId);
+    isFavorite = true;
+  }
+
+  await user.save();
+
+  return {
+    isFavorite,
+    favoriteIds: serializeFavoriteIds(user.favorites || []),
   };
 };
 
@@ -428,4 +509,6 @@ module.exports = {
   refreshToken,
   update,
   changePassword,
+  getFavoriteProducts,
+  toggleFavorite,
 };

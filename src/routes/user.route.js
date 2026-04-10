@@ -33,6 +33,17 @@ userRouter.get(
   authMiddleware.authUser,
   userController.getUserInfo
 );
+userRouter.get(
+  "/favorites",
+  authMiddleware.authUser,
+  userController.getFavoriteProducts
+);
+userRouter.post(
+  "/favorites/toggle",
+  authMiddleware.authUser,
+  userValidation.toggleFavorite,
+  userController.toggleFavorite
+);
 userRouter.patch(
   "/:_id",
   authMiddleware.authUser,

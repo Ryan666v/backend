@@ -192,6 +192,30 @@ const getUserInfo = async (req, res, next) => {
     next(error);
   }
 };
+const getFavoriteProducts = async (req, res, next) => {
+  try {
+    const products = await UserServices.getFavoriteProducts(req?.user?.userId);
+    return res.status(StatusCodes.OK).json({
+      message: "Favorite products retrieved successfully",
+      data: products,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+const toggleFavorite = async (req, res, next) => {
+  try {
+    const result = await UserServices.toggleFavorite(req.user, req.body.productId);
+    return res.status(StatusCodes.OK).json({
+      message: result.isFavorite
+        ? "Product added to favorites"
+        : "Product removed from favorites",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 const refreshToken = async (req, res, next) => {
   try {
     const rfToken = req.cookies?.refresh_token;
@@ -271,6 +295,8 @@ module.exports = {
   resetPasswordByCode,
   googleLogin,
   getUserInfo,
+  getFavoriteProducts,
+  toggleFavorite,
   refreshToken,
   logout,
   update,
