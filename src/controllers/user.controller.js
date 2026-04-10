@@ -32,6 +32,22 @@ const createUser = async (req, res, next) => {
     next(error);
   }
 };
+const requestEmailVerification = async (req, res, next) => {
+  try {
+    const result = await UserServices.requestEmailVerification(req.body);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+const verifyEmailCode = async (req, res, next) => {
+  try {
+    const result = await UserServices.verifyEmailCode(req.body);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
 const login = async (req, res, next) => {
   try {
     const user = await UserServices.login(req.body);
@@ -43,6 +59,22 @@ const login = async (req, res, next) => {
     return res
       .status(StatusCodes.OK)
       .json({ message: "Login successful", data: user });
+  } catch (error) {
+    next(error);
+  }
+};
+const requestPasswordReset = async (req, res, next) => {
+  try {
+    const result = await UserServices.requestPasswordReset(req.body);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+const resetPasswordByCode = async (req, res, next) => {
+  try {
+    const result = await UserServices.resetPasswordByCode(req.body);
+    return res.status(StatusCodes.OK).json(result);
   } catch (error) {
     next(error);
   }
@@ -232,7 +264,11 @@ const changePassword = async (req, res, next) => {
 };
 module.exports = {
   createUser,
+  requestEmailVerification,
+  verifyEmailCode,
   login,
+  requestPasswordReset,
+  resetPasswordByCode,
   googleLogin,
   getUserInfo,
   refreshToken,

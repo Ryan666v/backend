@@ -8,6 +8,7 @@ const createNew = async (req, res, next) => {
       username: Joi.string().alphanum().min(3).max(30).required(),
       email: Joi.string().email().required(),
       password: Joi.string().min(6).required(),
+      verificationToken: Joi.string().required(),
       role: Joi.string().valid("user", "admin").optional(),
       gender: Joi.string().valid("male", "female", "other").optional(),
       phone: Joi.string()
@@ -17,6 +18,31 @@ const createNew = async (req, res, next) => {
     })?.validateAsync(req.body, {
       abortEarly: false,
     });
+    next();
+  } catch (error) {
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
+  }
+};
+const requestEmailVerification = async (req, res, next) => {
+  try {
+    await Joi.object({
+      email: Joi.string().email().required(),
+    }).validateAsync(req.body, { abortEarly: false });
+    next();
+  } catch (error) {
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
+  }
+};
+const verifyEmailCode = async (req, res, next) => {
+  try {
+    await Joi.object({
+      email: Joi.string().email().required(),
+      code: Joi.string().length(6).required(),
+    }).validateAsync(req.body, { abortEarly: false });
     next();
   } catch (error) {
     next(
@@ -72,6 +98,37 @@ const update = async (req, res, next) => {
     );
   }
 };
+const requestPasswordReset = async (req, res, next) => {
+  try {
+    await Joi.object({
+      email: Joi.string().email().required(),
+    }).validateAsync(req.body, { abortEarly: false });
+    next();
+  } catch (error) {
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
+  }
+};
+const resetPasswordByCode = async (req, res, next) => {
+  try {
+    await Joi.object({
+      email: Joi.string().email().required(),
+      code: Joi.string().length(6).required(),
+      newPassword: Joi.string().min(6).required(),
+      confirmPassword: Joi.string()
+        .valid(Joi.ref("newPassword"))
+        .required(),
+    }).validateAsync(req.body, {
+      abortEarly: false,
+    });
+    next();
+  } catch (error) {
+    next(
+      new AppError(new Error(error).message, StatusCodes.UNPROCESSABLE_ENTITY)
+    );
+  }
+};
 const changePassword = async (req, res, next) => {
   try {
     await Joi.object({
@@ -90,4 +147,14 @@ const changePassword = async (req, res, next) => {
     );
   }
 };
-module.exports = { createNew, login, getUserInfo, update, changePassword };
+module.exports = {
+  createNew,
+  requestEmailVerification,
+  verifyEmailCode,
+  login,
+  requestPasswordReset,
+  resetPasswordByCode,
+  getUserInfo,
+  update,
+  changePassword,
+};

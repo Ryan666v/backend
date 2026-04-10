@@ -1,11 +1,68 @@
 const { StatusCodes } = require("http-status-codes");
 const User = require("../models/user.model");
+const AuthCode = require("../models/auth-code.model");
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const AppError = require("../utils/AppError");
 const jwt = require("jsonwebtoken");
 const env = require("../configs/environments");
 const jwtServices = require("./jwt.services");
 const Helper = require("../utils/helper");
+const MailServices = require("./mail.services");
+
+const AUTH_CODE_EXPIRES_IN_MS = 10 * 60 * 1000;
+const SIGNUP_VERIFICATION_TOKEN_EXPIRES_IN = "15m";
+
+const generateOtpCode = () => String(crypto.randomInt(100000, 1000000));
+
+const hashCode = (code) =>
+  crypto.createHash("sha256").update(String(code)).digest("hex");
+
+const issueSignupVerificationToken = (email) =>
+  jwt.sign(
+    { email, purpose: "signup-verification" },
+    env.EMAIL_TOKEN_SECRET || env.ACCESS_TOKEN_SECRET,
+    { expiresIn: SIGNUP_VERIFICATION_TOKEN_EXPIRES_IN },
+  );
+
+const verifySignupVerificationToken = (token) =>
+  jwt.verify(token, env.EMAIL_TOKEN_SECRET || env.ACCESS_TOKEN_SECRET);
+
+const createAuthCode = async ({ email, purpose }) => {
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const code = generateOtpCode();
+
+  await AuthCode.deleteMany({ email: normalizedEmail, purpose });
+
+  await AuthCode.create({
+    email: normalizedEmail,
+    purpose,
+    codeHash: hashCode(code),
+    expiresAt: new Date(Date.now() + AUTH_CODE_EXPIRES_IN_MS),
+  });
+
+  return code;
+};
+
+const consumeAuthCode = async ({ email, purpose, code }) => {
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const authCode = await AuthCode.findOne({
+    email: normalizedEmail,
+    purpose,
+  });
+
+  if (!authCode || authCode.expiresAt.getTime() < Date.now()) {
+    throw new AppError("Verification code has expired", StatusCodes.UNAUTHORIZED);
+  }
+
+  if (authCode.codeHash !== hashCode(code)) {
+    throw new AppError("Verification code is invalid", StatusCodes.UNAUTHORIZED);
+  }
+
+  await AuthCode.deleteOne({ _id: authCode._id });
+
+  return true;
+};
 
 const sanitizeUsername = (value = "") =>
   value
@@ -32,6 +89,28 @@ const buildUniqueUsername = async ({ name, email }) => {
 const createUser = (newUser) => {
   return new Promise(async (resolve, reject) => {
     try {
+      let verificationPayload;
+      try {
+        verificationPayload = verifySignupVerificationToken(
+          newUser.verificationToken,
+        );
+      } catch (error) {
+        throw new AppError(
+          "Email verification is invalid or expired",
+          StatusCodes.UNAUTHORIZED,
+        );
+      }
+
+      if (
+        verificationPayload?.purpose !== "signup-verification" ||
+        verificationPayload?.email !== String(newUser.email).trim().toLowerCase()
+      ) {
+        throw new AppError(
+          "Email verification is required before creating account",
+          StatusCodes.UNAUTHORIZED,
+        );
+      }
+
       const checkedUser = await User.findOne({ email: newUser.email });
       if (checkedUser) {
         throw new AppError(
@@ -42,6 +121,7 @@ const createUser = (newUser) => {
       const hashedPassword = await bcrypt.hash(newUser.password, 10);
       const createdUser = await User.create({
         ...newUser,
+        email: String(newUser.email).trim().toLowerCase(),
         password: hashedPassword,
       });
       if (createdUser) {
@@ -55,7 +135,9 @@ const createUser = (newUser) => {
 const login = (newUser) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const checkedUser = await User.findOne({ email: newUser.email });
+      const checkedUser = await User.findOne({
+        email: String(newUser.email).trim().toLowerCase(),
+      });
       if (!checkedUser) {
         throw new AppError(
           "User with this email does not exist",
@@ -119,6 +201,97 @@ const refreshToken = (token) => {
       reject(error);
     }
   });
+};
+
+const requestEmailVerification = async ({ email }) => {
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const existingUser = await User.findOne({ email: normalizedEmail }).lean();
+
+  if (existingUser) {
+    throw new AppError(
+      "User with this email already exists",
+      StatusCodes.CONFLICT,
+    );
+  }
+
+  const code = await createAuthCode({
+    email: normalizedEmail,
+    purpose: "signup",
+  });
+
+  await MailServices.sendVerificationCodeMail({
+    email: normalizedEmail,
+    code,
+  });
+
+  return { message: "Verification code sent successfully" };
+};
+
+const verifyEmailCode = async ({ email, code }) => {
+  const normalizedEmail = String(email).trim().toLowerCase();
+
+  await consumeAuthCode({
+    email: normalizedEmail,
+    purpose: "signup",
+    code,
+  });
+
+  return {
+    message: "Email verified successfully",
+    verificationToken: issueSignupVerificationToken(normalizedEmail),
+  };
+};
+
+const requestPasswordReset = async ({ email }) => {
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const user = await User.findOne({ email: normalizedEmail }).lean();
+
+  if (!user) {
+    return {
+      message: "If this email exists, a reset code has been sent",
+    };
+  }
+
+  const code = await createAuthCode({
+    email: normalizedEmail,
+    purpose: "reset-password",
+  });
+
+  await MailServices.sendResetPasswordCodeMail({
+    email: normalizedEmail,
+    code,
+  });
+
+  return {
+    message: "If this email exists, a reset code has been sent",
+  };
+};
+
+const resetPasswordByCode = async ({
+  email,
+  code,
+  newPassword,
+}) => {
+  const normalizedEmail = String(email).trim().toLowerCase();
+
+  await consumeAuthCode({
+    email: normalizedEmail,
+    purpose: "reset-password",
+    code,
+  });
+
+  const user = await User.findOne({ email: normalizedEmail });
+
+  if (!user) {
+    throw new AppError("User with this email does not exist", StatusCodes.NOT_FOUND);
+  }
+
+  user.password = await bcrypt.hash(newPassword, 10);
+  await user.save();
+
+  return {
+    message: "Password reset successfully",
+  };
 };
 
 const loginWithGoogle = async ({ googleId, email, name, picture, emailVerified }) => {
@@ -246,6 +419,10 @@ const changePassword = async (actor, _id, payload) => {
 module.exports = {
   createUser,
   login,
+  requestEmailVerification,
+  verifyEmailCode,
+  requestPasswordReset,
+  resetPasswordByCode,
   loginWithGoogle,
   getUserInfo,
   refreshToken,
