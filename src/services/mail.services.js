@@ -9,10 +9,6 @@ const getTransporter = () => {
   if (transporter) {
     return transporter;
   }
-  console.log('SMTP_HOST',env.SMTP_HOST);
-  console.log('SMTP_PORT',env.SMTP_PORT);
-  console.log('SMTP_USER',env.SMTP_USER);
-  console.log('SMTP_PASS',env.SMTP_PASS);
   if (!env.SMTP_HOST || !env.SMTP_PORT || !env.SMTP_USER || !env.SMTP_PASS) {
     throw new AppError(
       "SMTP configuration is missing",
