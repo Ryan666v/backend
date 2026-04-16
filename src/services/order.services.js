@@ -38,11 +38,20 @@ const ORDER_POPULATE = [
 const buildOrderCode = () =>
   `ORD_${Date.now()}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
+const getVietnamDateParts = (date = new Date()) => {
+  const vietnamDate = new Date(
+    date.toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }),
+  );
+
+  return {
+    year: String(vietnamDate.getFullYear()).slice(-2),
+    month: String(vietnamDate.getMonth() + 1).padStart(2, "0"),
+    date: String(vietnamDate.getDate()).padStart(2, "0"),
+  };
+};
+
 const buildZalopayAppTransId = (orderCode) => {
-  const now = new Date();
-  const year = String(now.getFullYear()).slice(-2);
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const date = String(now.getDate()).padStart(2, "0");
+  const { year, month, date } = getVietnamDateParts();
   return `${year}${month}${date}_${orderCode}`;
 };
 
@@ -208,6 +217,7 @@ const buildZalopayCreatePayload = ({
     app_trans_id: appTransId,
     embed_data: embedData,
     item,
+    bank_code: "",
     description: `Thanh toan don hang ${orderCode}`,
     callback_url: callbackUrl,
     mac: signHmacSha256(macInput, env.ZALOPAY_KEY1),
@@ -416,7 +426,18 @@ const create = async (actor, payload, req) => {
 
       if (Number(response.return_code) !== 1 || !response.order_url) {
         throw new AppError(
-          response.return_message || "Could not create ZaloPay payment",
+          [
+            response.return_message,
+            response.sub_return_message,
+            response.sub_return_code != null
+              ? `sub_return_code=${response.sub_return_code}`
+              : null,
+            response.return_code != null
+              ? `return_code=${response.return_code}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" | ") || "Could not create ZaloPay payment",
           StatusCodes.BAD_GATEWAY,
         );
       }
