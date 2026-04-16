@@ -1,5 +1,6 @@
 const { StatusCodes } = require("http-status-codes");
 const { default: mongoose } = require("mongoose");
+const crypto = require("crypto");
 const {
   IpnFailChecksum,
   IpnInvalidAmount,
@@ -37,11 +38,72 @@ const ORDER_POPULATE = [
 const buildOrderCode = () =>
   `ORD_${Date.now()}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
+const buildZalopayAppTransId = (orderCode) => {
+  const now = new Date();
+  const year = String(now.getFullYear()).slice(-2);
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const date = String(now.getDate()).padStart(2, "0");
+  return `${year}${month}${date}_${orderCode}`;
+};
+
 const getClientIp = (req) =>
   req.headers["x-forwarded-for"] ||
   req.connection?.remoteAddress ||
   req.socket?.remoteAddress ||
   req.ip;
+
+const getPublicApiBaseUrl = (req) => {
+  if (env.API_PUBLIC_URL) {
+    return env.API_PUBLIC_URL.replace(/\/$/, "");
+  }
+
+  const forwardedProto = req.headers["x-forwarded-proto"];
+  const protocol = forwardedProto || req.protocol || "http";
+  const host = req.get("host");
+
+  return `${protocol}://${host}`;
+};
+
+const getStorefrontBaseUrl = (req) =>
+  (env.APP_HOST || env.CLIENT_URL || req.headers.origin || "").replace(/\/$/, "");
+
+const ensureZalopayConfig = () => {
+  if (!env.ZALOPAY_APP_ID || !env.ZALOPAY_KEY1 || !env.ZALOPAY_KEY2) {
+    throw new AppError(
+      "ZaloPay is not configured. Missing ZALOPAY_APP_ID, ZALOPAY_KEY1 or ZALOPAY_KEY2",
+      StatusCodes.INTERNAL_SERVER_ERROR,
+    );
+  }
+};
+
+const signHmacSha256 = (payload, secret) =>
+  crypto.createHmac("sha256", secret).update(payload).digest("hex");
+
+const requestZalopay = async (endpoint, payload) => {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams(
+      Object.entries(payload).reduce((result, [key, value]) => {
+        result[key] = value == null ? "" : String(value);
+        return result;
+      }, {}),
+    ),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new AppError(
+      data?.return_message || "ZaloPay request failed",
+      StatusCodes.BAD_GATEWAY,
+    );
+  }
+
+  return data;
+};
 
 const aggregateItems = (items = []) => {
   const itemMap = new Map();
@@ -65,6 +127,108 @@ const populateOrderQuery = (query) =>
     (current, populateConfig) => current.populate(populateConfig),
     query,
   );
+
+const markOrderPaid = (order, paymentRef) => {
+  order.paymentStatus = "PAID";
+  order.status = order.status === "PENDING" ? "CONFIRMED" : order.status;
+  order.paymentRef = paymentRef || order.paymentRef;
+  order.paidAt = new Date();
+};
+
+const markOrderPaymentFailed = async (order, session) => {
+  if (order.inventoryReserved) {
+    await restoreInventoryForOrder(order._id, session);
+    order.inventoryReserved = false;
+  }
+
+  order.paymentStatus = "FAILED";
+  order.status = "CANCELLED";
+  order.cancelledAt = new Date();
+};
+
+const buildPaymentResultPayload = (order, success, message) => ({
+  success,
+  message,
+  orderId: order._id,
+  code: order.code,
+  paymentStatus: order.paymentStatus,
+  status: order.status,
+});
+
+const buildZalopayCreatePayload = ({
+  actor,
+  orderCode,
+  appTransId,
+  subtotal,
+  orderItemsPayload,
+  req,
+}) => {
+  ensureZalopayConfig();
+
+  const appId = Number(env.ZALOPAY_APP_ID);
+  const appTime = Date.now();
+  const appUser = String(actor.userId);
+  const storefrontBaseUrl = getStorefrontBaseUrl(req);
+
+  if (!storefrontBaseUrl) {
+    throw new AppError(
+      "Storefront URL is not configured. Set APP_HOST or CLIENT_URL before enabling ZaloPay",
+      StatusCodes.INTERNAL_SERVER_ERROR,
+    );
+  }
+
+  const item = JSON.stringify(
+    orderItemsPayload.map((itemPayload) => ({
+      itemid: String(itemPayload.productVariantItem),
+      itemname: itemPayload.productName,
+      itemprice: itemPayload.price,
+      itemquantity: itemPayload.quantity,
+    })),
+  );
+  const embedData = JSON.stringify({
+    merchantinfo: orderCode,
+    redirecturl: `${storefrontBaseUrl}/checkout/payment-result?provider=zalopay`,
+  });
+  const callbackUrl = `${getPublicApiBaseUrl(req)}/api/order/zalopay-callback`;
+  const macInput = [
+    appId,
+    appTransId,
+    appUser,
+    subtotal,
+    appTime,
+    embedData,
+    item,
+  ].join("|");
+
+  return {
+    app_id: appId,
+    app_user: appUser,
+    app_time: appTime,
+    amount: subtotal,
+    app_trans_id: appTransId,
+    embed_data: embedData,
+    item,
+    description: `Thanh toan don hang ${orderCode}`,
+    callback_url: callbackUrl,
+    mac: signHmacSha256(macInput, env.ZALOPAY_KEY1),
+  };
+};
+
+const queryZalopayTransaction = async (appTransId) => {
+  ensureZalopayConfig();
+
+  const appId = Number(env.ZALOPAY_APP_ID);
+  const mac = signHmacSha256(
+    `${appId}|${appTransId}|${env.ZALOPAY_KEY1}`,
+    env.ZALOPAY_KEY1,
+  );
+
+  return requestZalopay(env.ZALOPAY_QUERY_ENDPOINT, {
+    app_id: appId,
+    app_trans_id: appTransId,
+    mac,
+  });
+};
 
 const applyOrderStatusChange = async (order, nextStatus, session) => {
   if (!order) {
@@ -166,6 +330,9 @@ const create = async (actor, payload, req) => {
 
     const orderId = new mongoose.Types.ObjectId();
     const orderCode = buildOrderCode();
+    const paymentMethod = payload.paymentMethod || "COD";
+    const paymentAppTransId =
+      paymentMethod === "ZALOPAY" ? buildZalopayAppTransId(orderCode) : null;
 
     await reserveInventory(normalizedItems, session);
 
@@ -207,13 +374,14 @@ const create = async (actor, payload, req) => {
           ward: payload.ward,
           address: payload.address,
           note: payload.note,
-          paymentMethod: payload.paymentMethod || "COD",
+          paymentMethod,
           paymentStatus: "PENDING",
           status: "PENDING",
           subtotal,
           total: subtotal,
           totalItems,
           inventoryReserved: true,
+          paymentAppTransId,
           orderItems: orderItemsPayload.map((item) => item._id),
         },
       ],
@@ -221,7 +389,7 @@ const create = async (actor, payload, req) => {
     );
 
     let paymentUrl = null;
-    if ((payload.paymentMethod || "COD") === "VNPAY") {
+    if (paymentMethod === "VNPAY") {
       paymentUrl = vnpay.buildPaymentUrl({
         vnp_Amount: subtotal,
         vnp_IpAddr: getClientIp(req),
@@ -231,6 +399,29 @@ const create = async (actor, payload, req) => {
         vnp_ReturnUrl: `${env.APP_HOST}/checkout/payment-result`,
         vnp_Locale: "vn",
       });
+    }
+
+    if (paymentMethod === "ZALOPAY") {
+      const response = await requestZalopay(
+        env.ZALOPAY_CREATE_ENDPOINT,
+        buildZalopayCreatePayload({
+          actor,
+          orderCode,
+          appTransId: paymentAppTransId,
+          subtotal,
+          orderItemsPayload,
+          req,
+        }),
+      );
+
+      if (Number(response.return_code) !== 1 || !response.order_url) {
+        throw new AppError(
+          response.return_message || "Could not create ZaloPay payment",
+          StatusCodes.BAD_GATEWAY,
+        );
+      }
+
+      paymentUrl = response.order_url;
     }
 
     await session.commitTransaction();
@@ -529,18 +720,9 @@ const applyVnpayResult = async (query, verificationType = "return") => {
     }
 
     if (verify.isSuccess) {
-      order.paymentStatus = "PAID";
-      order.status = order.status === "PENDING" ? "CONFIRMED" : order.status;
-      order.paymentRef = verify.vnp_TransactionNo || verify.vnp_BankTranNo;
-      order.paidAt = new Date();
+      markOrderPaid(order, verify.vnp_TransactionNo || verify.vnp_BankTranNo);
     } else {
-      if (order.inventoryReserved) {
-        await restoreInventoryForOrder(order._id, session);
-        order.inventoryReserved = false;
-      }
-      order.paymentStatus = "FAILED";
-      order.status = "CANCELLED";
-      order.cancelledAt = new Date();
+      await markOrderPaymentFailed(order, session);
     }
 
     await order.save({ session });
@@ -567,6 +749,158 @@ const applyVnpayResult = async (query, verificationType = "return") => {
   }
 };
 
+const applyZalopayCallback = async (callbackBody) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    ensureZalopayConfig();
+
+    const dataStr = callbackBody?.data;
+    const requestMac = callbackBody?.mac;
+
+    if (!dataStr || !requestMac) {
+      await session.abortTransaction();
+      return {
+        return_code: 2,
+        return_message: "Missing callback payload",
+      };
+    }
+
+    const mac = signHmacSha256(dataStr, env.ZALOPAY_KEY2);
+    if (mac !== requestMac) {
+      await session.abortTransaction();
+      return {
+        return_code: -1,
+        return_message: "mac not equal",
+      };
+    }
+
+    const callbackData = JSON.parse(dataStr);
+    const order = await Order.findOne({
+      paymentAppTransId: callbackData.app_trans_id,
+    }).session(session);
+
+    if (!order) {
+      await session.abortTransaction();
+      return {
+        return_code: 2,
+        return_message: "Order not found",
+      };
+    }
+
+    if (Number(callbackData.amount) !== order.total) {
+      await session.abortTransaction();
+      return {
+        return_code: 2,
+        return_message: "Invalid amount",
+      };
+    }
+
+    if (order.paymentStatus !== "PAID") {
+      markOrderPaid(order, callbackData.zp_trans_id);
+      await order.save({ session });
+    }
+
+    await session.commitTransaction();
+    return {
+      return_code: 1,
+      return_message: "success",
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    return {
+      return_code: 0,
+      return_message: error.message,
+    };
+  } finally {
+    session.endSession();
+  }
+};
+
+const applyZalopayReturn = async (query) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    ensureZalopayConfig();
+
+    const checksumData = [
+      query.appid ?? "",
+      query.apptransid ?? "",
+      query.pmcid ?? "",
+      query.bankcode ?? "",
+      query.amount ?? "",
+      query.discountamount ?? "",
+      query.status ?? "",
+    ].join("|");
+    const checksum = signHmacSha256(checksumData, env.ZALOPAY_KEY2);
+
+    if (checksum !== query.checksum) {
+      await session.abortTransaction();
+      return {
+        success: false,
+        message: "Invalid ZaloPay checksum",
+      };
+    }
+
+    const order = await Order.findOne({
+      paymentAppTransId: query.apptransid,
+    }).session(session);
+
+    if (!order) {
+      await session.abortTransaction();
+      return {
+        success: false,
+        message: "Order not found",
+      };
+    }
+
+    if (order.paymentStatus === "PAID") {
+      await session.abortTransaction();
+      return buildPaymentResultPayload(order, true, "Order already confirmed");
+    }
+
+    const queryResult = await queryZalopayTransaction(order.paymentAppTransId);
+    const returnCode = Number(queryResult.return_code);
+
+    if (returnCode === 1) {
+      markOrderPaid(order, queryResult.zp_trans_id);
+      await order.save({ session });
+      await session.commitTransaction();
+      return buildPaymentResultPayload(
+        order,
+        true,
+        queryResult.return_message || "Payment confirmed",
+      );
+    }
+
+    if (returnCode === 3) {
+      await session.abortTransaction();
+      return buildPaymentResultPayload(
+        order,
+        false,
+        queryResult.return_message || "Payment is still pending confirmation",
+      );
+    }
+
+    await markOrderPaymentFailed(order, session);
+    await order.save({ session });
+    await session.commitTransaction();
+
+    return buildPaymentResultPayload(
+      order,
+      false,
+      queryResult.return_message || "Payment failed",
+    );
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
 module.exports = {
   create,
   getList,
@@ -575,4 +909,6 @@ module.exports = {
   bulkUpdateStatus,
   cancel,
   applyVnpayResult,
+  applyZalopayReturn,
+  applyZalopayCallback,
 };

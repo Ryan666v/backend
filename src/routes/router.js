@@ -8,6 +8,7 @@ const VariantItemRouter = require("./product-variant-item.route");
 const ImageRouter = require("./image.route");
 const OrderRouter = require("./order.route");
 const ContactRouter = require("./contact.route");
+const BlogRouter = require("./blog.route");
 const route = (app) => {
   app.use("/api/users", UserRouter);
   app.use("/api/category", CategoryRouter);
@@ -19,6 +20,7 @@ const route = (app) => {
   app.use("/api/image", ImageRouter);
   app.use("/api/order", OrderRouter);
   app.use("/api/contact", ContactRouter);
+  app.use("/api/blog", BlogRouter);
 };
 
 module.exports = route;

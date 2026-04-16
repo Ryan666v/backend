@@ -6,6 +6,8 @@ const authMiddleware = require("../middlewares/auth.middleware");
 
 orderRouter.get("/vnpay-return", orderController.vnpayReturn);
 orderRouter.get("/vnpay-ipn", orderController.vnpayIpn);
+orderRouter.get("/zalopay-return", orderController.zalopayReturn);
+orderRouter.post("/zalopay-callback", orderController.zalopayCallback);
 orderRouter.post(
   "/create",
   authMiddleware.authUser,

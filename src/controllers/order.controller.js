@@ -87,6 +87,20 @@ const vnpayIpn = async (req, res) => {
   return res.status(StatusCodes.OK).json(result);
 };
 
+const zalopayReturn = async (req, res, next) => {
+  try {
+    const result = await OrderServices.applyZalopayReturn(req.query);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const zalopayCallback = async (req, res) => {
+  const result = await OrderServices.applyZalopayCallback(req.body);
+  return res.status(StatusCodes.OK).json(result);
+};
+
 module.exports = {
   createOrder,
   list,
@@ -96,4 +110,6 @@ module.exports = {
   cancel,
   vnpayReturn,
   vnpayIpn,
+  zalopayReturn,
+  zalopayCallback,
 };

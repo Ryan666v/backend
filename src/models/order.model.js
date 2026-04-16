@@ -13,7 +13,7 @@ const orderSchema = new mongoose.Schema(
     note: { type: String, trim: true },
     paymentMethod: {
       type: String,
-      enum: ["COD", "VNPAY"],
+      enum: ["COD", "VNPAY", "ZALOPAY"],
       required: true,
       default: "COD",
     },
@@ -34,6 +34,7 @@ const orderSchema = new mongoose.Schema(
     totalItems: { type: Number, required: true, min: 1 },
     inventoryReserved: { type: Boolean, required: true, default: true },
     paymentRef: { type: String, trim: true },
+    paymentAppTransId: { type: String, trim: true, index: true },
     paidAt: { type: Date },
     cancelledAt: { type: Date },
     orderItems: [

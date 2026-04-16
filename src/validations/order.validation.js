@@ -17,7 +17,7 @@ const create = async (req, res, next) => {
       ward: Joi.string().trim().min(1).max(120).required(),
       address: Joi.string().trim().min(5).max(255).required(),
       note: Joi.string().trim().max(500).allow("").optional(),
-      paymentMethod: Joi.string().valid("COD", "VNPAY").default("COD"),
+      paymentMethod: Joi.string().valid("COD", "VNPAY", "ZALOPAY").default("COD"),
       items: Joi.array()
         .items(
           Joi.object({
@@ -58,7 +58,7 @@ const getList = async (req, res, next) => {
       paymentStatus: Joi.string()
         .valid("PENDING", "PAID", "FAILED", "REFUNDED", "CANCELLED")
         .optional(),
-      paymentMethod: Joi.string().valid("COD", "VNPAY").optional(),
+      paymentMethod: Joi.string().valid("COD", "VNPAY", "ZALOPAY").optional(),
       user: objectId.optional(),
     }).validateAsync(req.query, {
       abortEarly: false,

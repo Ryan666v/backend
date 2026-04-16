@@ -5,7 +5,7 @@ const imageSchema = new mongoose.Schema(
     public_id: { type: String, required: true },
     scope: {
       type: String,
-      enum: ["product", "landing", "branding"],
+      enum: ["product", "landing", "branding", "content"],
       default: "product",
     },
     slotKey: {

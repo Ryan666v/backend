@@ -3,7 +3,7 @@ const Image = require("../models/image.model");
 const AppError = require("../utils/AppError");
 const Helper = require("../utils/helper");
 const cloudinary = require("../configs/cloudinary");
-const IMAGE_SCOPES = new Set(["product", "landing", "branding"]);
+const IMAGE_SCOPES = new Set(["product", "landing", "branding", "content"]);
 
 const normalizeMetadata = (payload = {}) => {
   const scope = IMAGE_SCOPES.has(payload.scope) ? payload.scope : "product";
